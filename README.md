@@ -6,8 +6,9 @@ Application web (installable sur iPhone / Android) qui produit le rapport de lev
 
 1. Ouvrir l'application : https://renelangevin.github.io/GEDO-REC/
 2. Sur iPhone : bouton Partager → **Sur l'écran d'accueil** pour l'installer (fonctionne ensuite hors ligne).
-3. **Choisir les fichiers** : le fichier `.sie` du secteur (GEDO Office : axe, profil, dévers, repères) et l'export `.xml` (JobXML) du carnet GEDO Rec. Une clé USB-C apparaît dans l'app Fichiers, sous Emplacements.
-4. **Calculer les écarts**, puis **Rapport PDF** et **Tableau Excel**.
+3. **Choisir les fichiers** : un `.sie` par voie levée (GEDO Office : axe, profil, dévers), l'export `.xml` (JobXML) du carnet GEDO Rec et, au besoin, le `.csv` des repères (nom,E,N,Z). Une clé USB-C apparaît dans l'app Fichiers, sous Emplacements.
+4. **Lignes de levé** : pour chaque ligne du carnet, vérifier la voie associée (proposée automatiquement), le sens de marche (Auto = déduit de la position du prisme sur la voie, corrige un sens mal saisi au carnet), les points à exclure (ex. `29-30, 173`) ; décocher une ligne pour l'écarter. Les points suspects (écart marqué avec leurs voisins) sont proposés d'un toucher.
+5. **Calculer les écarts** : un résultat par voie, avec **Rapport PDF** et **Tableau Excel**.
 
 Tout le traitement se fait sur l'appareil : aucun fichier de levé n'est envoyé en ligne ni stocké dans ce dépôt.
 

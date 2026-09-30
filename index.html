@@ -82,6 +82,20 @@ td:first-child { font-family: var(--body); }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); }
 .legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
 .err { background: var(--bad-bg); border: 1px solid var(--bad); border-radius: 8px; padding: 10px 12px; font-size: .9rem; }
+.lines { display: grid; gap: 10px; }
+.line { border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; gap: 8px; min-width: 0; }
+.line.off { opacity: .55; }
+.lhead { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; color: var(--ink); font-size: .9rem; }
+.lhead input { width: 20px; height: 20px; margin: 0; align-self: center; }
+.lhead b { font: 600 1rem var(--display); }
+.lgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.flag { background: var(--warn-bg); border-left: 3px solid var(--warn); padding: 6px 10px; border-radius: 6px; font-size: .85rem; }
+.sus { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { font: 500 .75rem var(--mono); min-height: 32px; padding: 4px 10px; border-radius: 999px; background: var(--sunk); border: 1px dashed var(--muted); text-align: left; }
+.chip.on { background: var(--bad-bg); border: 1px solid var(--bad); color: var(--bad); text-decoration: line-through; }
+.voie { display: grid; gap: 12px; border-top: 2px solid var(--accent); padding-top: 12px; min-width: 0; }
+.voie > * { min-width: 0; }
+.vt { font: 700 1.15rem var(--display); margin: 0; overflow-wrap: anywhere; }
 #out { min-width: 0; display: grid; gap: 12px; }
 #out > * { min-width: 0; }
 .empty { display: grid; gap: 8px; }
@@ -99,18 +113,23 @@ td:first-child { font-family: var(--body); }
 
   <section class="card" id="step1">
     <h2><span class="step">1</span>Fichiers du levé</h2>
-    <p class="muted">Choisissez le fichier <b>.sie</b> du secteur (alignement, profil, dévers, repères) et l'export <b>.xml</b> du carnet GEDO Rec. Sur iPhone, la clé USB-C apparaît dans Fichiers, sous Emplacements.</p>
+    <p class="muted">Choisissez les fichiers <b>.sie</b> des voies levées (un par alignement), l'export <b>.xml</b> du carnet GEDO Rec et, au besoin, le <b>.csv</b> des repères. Sur iPhone, la clé USB-C apparaît dans Fichiers, sous Emplacements.</p>
     <div class="row">
       <button class="primary" id="pick">Choisir les fichiers</button>
       <input type="file" id="fileInput" multiple hidden>
       <button id="clear" hidden>Retirer les fichiers</button>
     </div>
     <div class="files" id="fileList"></div>
-    <label id="trackWrap" hidden>Voie dans le fichier .sie<select id="track"></select></label>
   </section>
 
-  <section class="card" id="step2">
-    <h2><span class="step">2</span>Paramètres</h2>
+  <section class="card" id="step2" hidden>
+    <h2><span class="step">2</span>Lignes de levé</h2>
+    <p class="muted">Vérifiez pour chaque ligne la voie, le sens de marche et les points à exclure. Décochez une ligne pour l'écarter du traitement.</p>
+    <div class="lines" id="lineList"></div>
+  </section>
+
+  <section class="card" id="step3">
+    <h2><span class="step">3</span>Paramètres</h2>
     <p class="muted" id="paramSummary"></p>
     <details id="paramBox">
       <summary>Modifier les paramètres</summary>
@@ -134,7 +153,7 @@ td:first-child { font-family: var(--body); }
   </section>
 
   <section class="card" id="results">
-    <h2><span class="step">3</span>Résultats</h2>
+    <h2><span class="step">4</span>Résultats</h2>
     <div id="out" class="empty">
       <p class="muted">Les résultats apparaîtront ici :</p>
       <ol class="muted">
@@ -443,22 +462,26 @@ const GedoEngine = (() => {
     const job = X.path(root, 'JOBFile');
     if (!job) throw new Error("Le fichier XML n'est pas un export JobXML de GEDO Rec.");
     const fb = X.kid(job, 'Fieldbook');
-    const out = { jobName: job.attrs.jobName, product: `${job.attrs.product || ''} ${job.attrs.version || ''}`.trim(), backsights: [], points: [], checks: [], topo: [], ori: [] };
-    let target = { h: 0, pc: 0 }, ori = { fix: 'Left', prism: 'Left', href: 'Left', dir: 'Unknown' }, refr = 0.142;
+    const out = { jobName: job.attrs.jobName, product: `${job.attrs.product || ''} ${job.attrs.version || ''}`.trim(), backsights: [], points: [], checks: [], topo: [], ori: [], stations: [] };
+    let target = { h: 0, pc: 0 }, ori = { fix: 'Left', prism: 'Left', href: 'Left', dir: 'Unknown' }, refr = 0.142, st = -1, trolley = null;
     for (const e of fb.children) {
       const t = e.tag;
       if (t === 'WeatherRecord') { out.weather = { p: X.num(e, 'Pressure'), t: X.num(e, 'Temperature') }; const r = X.txt(e, 'RefractionType') || ''; const m = r.match(/(\d+)_(\d+)/); if (m) refr = parseFloat(`${m[1]}.${m[2]}`); out.weather.k = refr; }
-      else if (t === 'StationRecord') out.station = { name: X.txt(e, 'Name'), E: X.num(e, 'Grid/East'), N: X.num(e, 'Grid/North'), Z: X.num(e, 'Grid/Elevation'), scale: X.num(e, 'ScaleFactor'), ori: X.num(e, 'Orientation'), ih: X.num(e, 'InstrumentHeight') || 0, type: X.txt(e, 'StationType'), time: e.attrs.TimeStamp };
+      else if (t === 'StationRecord') { st = out.stations.length; out.stations.push({ name: X.txt(e, 'Name'), E: X.num(e, 'Grid/East'), N: X.num(e, 'Grid/North'), Z: X.num(e, 'Grid/Elevation'), scale: X.num(e, 'ScaleFactor'), ori: X.num(e, 'Orientation'), ih: X.num(e, 'InstrumentHeight') || 0, type: X.txt(e, 'StationType'), time: e.attrs.TimeStamp }); out.station = out.stations[0]; }
       else if (t === 'TargetRecord') target = { h: X.num(e, 'TargetHeight') || 0, pc: X.num(e, 'PrismConstant') || 0 };
-      else if (t === 'BackSightRecord') out.backsights.push({ name: X.txt(e, 'Name'), face: +X.txt(e, 'Face'), hz: X.num(e, 'Circle/HorizontalCircle'), v: X.num(e, 'Circle/VerticalCircle'), sd: X.num(e, 'Circle/EDMDistance'), E: X.num(e, 'Grid/East'), N: X.num(e, 'Grid/North'), Z: X.num(e, 'Grid/Elevation'), pc: target.pc, th: target.h, enabled: X.txt(e, 'Enabled') !== 'False' });
-      else if (t === 'TrolleyRecord') out.trolley = { name: X.txt(e, 'Name'), fixH: X.num(e, 'FixSide/HorizontalOffset'), fixV: X.num(e, 'FixSide/VerticalOffset'), incOffset: X.num(e, 'IncSensor/Offset'), gaugeOffset: X.num(e, 'GaugeSensor/Offset') };
+      else if (t === 'BackSightRecord') out.backsights.push({ name: X.txt(e, 'Name'), face: +X.txt(e, 'Face'), hz: X.num(e, 'Circle/HorizontalCircle'), v: X.num(e, 'Circle/VerticalCircle'), sd: X.num(e, 'Circle/EDMDistance'), E: X.num(e, 'Grid/East'), N: X.num(e, 'Grid/North'), Z: X.num(e, 'Grid/Elevation'), pc: target.pc, th: target.h, enabled: X.txt(e, 'Enabled') !== 'False', st });
+      else if (t === 'TrolleyRecord') {
+        const tr = { name: X.txt(e, 'Name'), time: e.attrs.TimeStamp, fixH: X.num(e, 'FixSide/HorizontalOffset'), fixV: X.num(e, 'FixSide/VerticalOffset'), incOffset: X.num(e, 'IncSensor/Offset'), gaugeOffset: X.num(e, 'GaugeSensor/Offset') };
+        // GEDO Rec écrit parfois un enregistrement vide (date 1900, valeurs nulles) : on l'ignore
+        if (tr.name && !(tr.time || '').startsWith('1900') && (tr.fixV || tr.gaugeOffset)) { trolley = tr; out.trolley = out.trolley || tr; }
+      }
       else if (t === 'AlignmentRecord') out.align = { gauge: X.num(e, 'ReferenceGauge'), cantBase: X.num(e, 'CantBase') };
       else if (t === 'CalibrationResults') {
         const g = X.kid(e, 'TrolleyGauge'), i = X.kid(e, 'TrolleyInclination');
         out.calib = { gauge: g ? { time: g.attrs.TimeStamp, measured: X.num(g, 'MeasuredValue'), reference: X.num(g, 'ReferenceValue'), old: X.num(g, 'OldValue'), nw: X.num(g, 'NewValue') } : null, incl: i ? { time: i.attrs.TimeStamp, f1: X.num(i, 'Face1Value'), f2: X.num(i, 'Face2Value'), old: X.num(i, 'OldValue'), nw: X.num(i, 'NewValue') } : null };
-      } else if (t === 'TrolleyOriRecord') { ori = { fix: X.txt(e, 'FixSide'), prism: X.txt(e, 'PrismSide'), href: X.txt(e, 'HeightRefSide'), dir: X.txt(e, 'Chainage') }; out.ori.push({ ...ori, time: e.attrs.TimeStamp }); }
+      } else if (t === 'TrolleyOriRecord') { if ((e.attrs.TimeStamp || '').startsWith('1900')) continue; ori = { fix: X.txt(e, 'FixSide'), prism: X.txt(e, 'PrismSide'), href: X.txt(e, 'HeightRefSide'), dir: X.txt(e, 'Chainage') }; out.ori.push({ ...ori, time: e.attrs.TimeStamp }); }
       else if (t === 'PointRecord') {
-        const p = { name: X.txt(e, 'Name'), line: X.txt(e, 'LineName') || '', cls: X.txt(e, 'Classification'), deleted: X.txt(e, 'Deleted') === 'True', time: e.attrs.TimeStamp, E: X.num(e, 'ComputedGrid/East'), N: X.num(e, 'ComputedGrid/North'), Z: X.num(e, 'ComputedGrid/Elevation'), hz: X.num(e, 'Circle/HorizontalCircle'), v: X.num(e, 'Circle/VerticalCircle'), sd: X.num(e, 'Circle/EDMDistance'), th: target.h, pc: target.pc, ori: { ...ori } };
+        const p = { name: X.txt(e, 'Name'), line: X.txt(e, 'LineName') || '', cls: X.txt(e, 'Classification'), deleted: X.txt(e, 'Deleted') === 'True', time: e.attrs.TimeStamp, E: X.num(e, 'ComputedGrid/East'), N: X.num(e, 'ComputedGrid/North'), Z: X.num(e, 'ComputedGrid/Elevation'), hz: X.num(e, 'Circle/HorizontalCircle'), v: X.num(e, 'Circle/VerticalCircle'), sd: X.num(e, 'Circle/EDMDistance'), th: target.h, pc: target.pc, ori: { ...ori }, st, trolley };
         const sv = X.kid(e, 'SensorValues'), so = X.kid(e, 'Stakeout');
         if (sv && !p.deleted) { p.incl = X.num(sv, 'Inclination'); p.gauge = X.num(sv, 'Gauge'); p.tc = X.num(sv, 'TrueChainage'); out.points.push(p); }
         else if (so) { p.dE = X.num(so, 'GridDeltas/DeltaEast'); p.dN = X.num(so, 'GridDeltas/DeltaNorth'); p.dZ = X.num(so, 'GridDeltas/DeltaElev'); out.checks.push(p); }
@@ -469,6 +492,70 @@ const GedoEngine = (() => {
     if (!out.points.length) throw new Error('Aucun point de chariot (SensorValues) dans le carnet XML.');
     // sens de marche : l'orientation du chariot, sinon la progression des PK
     return out;
+  }
+
+
+  // ---------------------------------------------------------------- lignes du carnet
+  function surveyLines(job) {
+    const by = {};
+    job.points.forEach((p) => { (by[p.line] = by[p.line] || []).push(p); });
+    return Object.entries(by).map(([name, L]) => {
+      const rec = L.find((p) => p.ori.dir === 'Ascending' || p.ori.dir === 'Descending');
+      return { name, n: L.length, first: L[0].name, last: L[L.length - 1].name, t0: L[0].time, t1: L[L.length - 1].time,
+        station: job.stations[L[0].st] ? job.stations[L[0].st].name : '', recDir: rec ? rec.ori.dir : 'Unknown', tc0: L[0].tc, tc1: L[L.length - 1].tc };
+    });
+  }
+  // associe chaque ligne à la voie la plus proche et propose le sens de marche
+  function matchLines(designs, job) {
+    const aligns = designs.map((d) => makeAlignment(d));
+    return surveyLines(job).map((ln) => {
+      const L = job.points.filter((p) => p.line === ln.name);
+      const sample = L.filter((_, i) => i % Math.max(1, Math.floor(L.length / 15)) === 0);
+      let best = null;
+      aligns.forEach((A, i) => {
+        const pr = sample.map((p) => A.project(p.E, p.N));
+        const inside = pr.filter((q) => q.pk > A.start + 0.01 && q.pk < A.end - 0.01);
+        if (!inside.length) return;
+        const offs = inside.map((q) => q.off).sort((a, b) => a - b), med = offs[Math.floor(offs.length / 2)];
+        const score = Math.abs(Math.abs(med) - 0.72) + (1 - inside.length / pr.length) * 10;
+        if (Math.abs(med) < 2.5 && (!best || score < best.score)) best = { design: i, score, med, pk0: A.project(L[0].E, L[0].N).pk, pk1: A.project(L[L.length - 1].E, L[L.length - 1].N).pk };
+      });
+      let autoDir = null, travel = null;
+      if (best) {
+        const trolleySide = (L[0].ori.prism || 'Left') === 'Left' ? -1 : 1;
+        autoDir = (best.med < 0 ? -1 : 1) === trolleySide ? 'Ascending' : 'Descending';
+        travel = best.pk1 >= best.pk0 ? 'Ascending' : 'Descending';
+      }
+      return { ...ln, design: best ? best.design : -1, pk0: best ? best.pk0 : NaN, pk1: best ? best.pk1 : NaN, autoDir, travel,
+        dirMismatch: !!(autoDir && ln.recDir !== 'Unknown' && autoDir !== ln.recDir) };
+    });
+  }
+
+
+  // points suspects : écart marqué par rapport aux voisins de la même ligne (± 3 m)
+  function findSuspects(r, thr = 5) {
+    const med = (a) => { const q = [...a].sort((x, y) => x - y); return q[Math.floor(q.length / 2)]; };
+    const out = {};
+    r.points.filter((p) => p.status === 'OK').forEach((p) => {
+      const nb = r.points.filter((q) => q !== p && q.line === p.line && q.status === 'OK' && Math.abs(q.pk - p.pk) < 3);
+      if (nb.length < 2) return;
+      const why = [];
+      const t = [['dGauge', 'écartement'], ['cant', 'dévers'], ['dZL', 'nivellement'], ['dLat', 'plan']];
+      t.forEach(([k, lab]) => { const d = p[k] - med(nb.map((q) => q[k])); if (Math.abs(d) > thr) why.push(`${lab} ${d > 0 ? '+' : '\u2212'}${Math.abs(d).toFixed(0)} mm`); });
+      if (why.length) (out[p.line] = out[p.line] || []).push({ name: p.name, pk: p.pk, why: why.join(', ') });
+    });
+    return out;
+  }
+  // repères : fichier CSV nom,E,N,Z
+  function readControl(text) {
+    const m = {};
+    text.split(/\r?\n/).forEach((l) => { const c = l.split(/[,;\t]/).map((x) => x.trim()); if (c.length >= 4 && c[0] && Number.isFinite(parseFloat(c[1]))) m[c[0]] = { E: parseFloat(c[1]), N: parseFloat(c[2]), Z: parseFloat(c[3]) }; });
+    return m;
+  }
+  function compareControl(job, ctrl) {
+    const seen = {};
+    job.backsights.forEach((b) => { if (seen[b.name]) return; const c = ctrl[b.name]; seen[b.name] = c ? { name: b.name, dE: (b.E - c.E) * 1000, dN: (b.N - c.N) * 1000, dZ: (b.Z - c.Z) * 1000, found: true } : { name: b.name, found: false }; });
+    return Object.values(seen);
   }
 
   // ---------------------------------------------------------------- utilitaires
@@ -497,27 +584,40 @@ const GedoEngine = (() => {
     const A = makeAlignment(design);
     const G0 = job.align && job.align.gauge ? job.align.gauge : parseFloat(design.settings.gauge || '1.435');
     const BASE = job.align && job.align.cantBase ? job.align.cantBase : 1.502;
-    const fixV = P.fixSideV ?? (job.trolley ? job.trolley.fixV : 0);
-    const fixH = P.fixSideH ?? (job.trolley ? job.trolley.fixH : 0);
+    const trFix = (p, k) => (p.trolley && Number.isFinite(p.trolley[k]) ? p.trolley[k] : job.trolley ? job.trolley[k] : 0);
     const warnings = [];
+    const LC = P.lines || null; // { nomDeLigne: { include, dir: 'auto'|'record'|'asc'|'desc', exclude: [noms de points] } }
 
-    // sens de marche par point
-    const pts = job.points.map((p, i) => ({ ...p, idx: i }));
+    // points retenus selon les choix de l'utilisateur
+    const pts = job.points.map((p, i) => ({ ...p, idx: i })).filter((p) => {
+      if (!LC) return true;
+      const c = LC[p.line]; if (!c || c.include === false) return false;
+      return !(c.exclude || []).includes(String(p.name));
+    });
+    if (!pts.length) throw new Error('Aucun point retenu pour cette voie : vérifiez les lignes sélectionnées.');
     const byLine = {};
     pts.forEach((p) => { (byLine[p.line] = byLine[p.line] || []).push(p); });
     for (const p of pts) {
       const pr = A.project(p.E, p.N);
       Object.assign(p, { pk: pr.pk, off: pr.off, az: pr.az });
     }
-    Object.values(byLine).forEach((L) => {
-      let asc;
-      const d = L[0].ori.dir;
-      if (d === 'Ascending') asc = true; else if (d === 'Descending') asc = false;
-      else asc = L.length > 1 ? L[L.length - 1].pk >= L[0].pk : true;
-      L.forEach((p) => { if (p.ori.dir === 'Ascending') p.asc = true; else if (p.ori.dir === 'Descending') p.asc = false; else p.asc = asc; });
+    const lineInfo = [];
+    Object.entries(byLine).forEach(([name, L]) => {
+      const rec = L.find((p) => p.ori.dir === 'Ascending' || p.ori.dir === 'Descending');
+      const recAsc = rec ? rec.ori.dir === 'Ascending' : null;
+      const offs = L.map((p) => p.off).sort((a, b) => a - b), med = offs[Math.floor(offs.length / 2)];
+      const trolleySide = (L[0].ori.prism || 'Left') === 'Left' ? -1 : 1;
+      const autoAsc = (med < 0 ? -1 : 1) === trolleySide; // le prisme est sur le rail du côté mesuré
+      const mode = (LC && LC[name] && LC[name].dir) || 'auto';
+      const asc = mode === 'asc' ? true : mode === 'desc' ? false : mode === 'record' && recAsc !== null ? recAsc : autoAsc;
+      L.forEach((p) => { p.asc = asc; });
+      const pks = L.map((p) => p.pk);
+      lineInfo.push({ name, n: L.length, recAsc, autoAsc, asc, mode, from: pks[0], to: pks[pks.length - 1], medOff: med });
+      if (recAsc !== null && recAsc !== asc) warnings.push(`Ligne ${name} : sens enregistré au carnet (${recAsc ? 'ascendant' : 'descendant'}) inversé pour le calcul (${asc ? 'ascendant' : 'descendant'}), d\u2019après la position du prisme sur la voie.`);
     });
 
     for (const p of pts) {
+      const fixV = P.fixSideV ?? trFix(p, 'fixV'), fixH = P.fixSideH ?? trFix(p, 'fixH');
       const HP = (P.targetHeight ?? p.th) + fixV;
       p.HP = HP;
       const sgn = p.asc ? 1 : -1;
@@ -641,27 +741,32 @@ const GedoEngine = (() => {
     const zoneTable = zones.map((z) => ({ type: z.type, R: z.el.t === 1 ? z.el.R1 : null, L: z.el.L, from: z.rows[0].pk, to: z.rows[z.rows.length - 1].pk,
       s: Object.fromEntries(['hDev', 'dLat', 'dZL', 'dZR', 'dGauge', 'dCant'].map((k) => [k, stats(z.rows.map((r) => r[k]))])) }));
 
-    // mise en station
-    const st = job.station;
+    // mise en station (chaque station utilisée par les points retenus)
     const k = job.refraction ?? 0.142;
-    const bs = job.backsights.map((b) => {
-      let hz = b.hz, v = b.v;
-      if (v > 200) { hz -= 200; v = 400 - v; }
-      const s = b.sd + b.pc, hd = s * Math.sin(v * G);
-      const dz = s * Math.cos(v * G) + ((1 - k) * hd * hd) / (2 * 6378000) + (st.ih || 0) - (b.th || 0);
-      const az = (hz + st.ori) * G;
-      const E = st.E + hd * st.scale * Math.sin(az), N = st.N + hd * st.scale * Math.cos(az), Z = st.Z + dz;
-      const dE = E - b.E, dN = N - b.N;
-      return { ...b, hd: hd * st.scale, dE: dE * 1000, dN: dN * 1000, dZ: (Z - b.Z) * 1000, dLon: (dE * Math.sin(az) + dN * Math.cos(az)) * 1000, dLatr: (dE * Math.cos(az) - dN * Math.sin(az)) * 1000 };
+    const usedSt = [...new Set(pts.map((p) => p.st))].filter((i) => i >= 0 && job.stations[i]);
+    const stationRes = [], stations = [];
+    usedSt.forEach((si) => {
+      const st = job.stations[si]; stations.push(st);
+      const bs = job.backsights.filter((b) => b.st === si).map((b) => {
+        let hz = b.hz, v = b.v;
+        if (v > 200) { hz -= 200; v = 400 - v; }
+        const s = b.sd + b.pc, hd = s * Math.sin(v * G);
+        const dz = s * Math.cos(v * G) + ((1 - k) * hd * hd) / (2 * 6378000) + (st.ih || 0) - (b.th || 0);
+        const az = (hz + st.ori) * G;
+        const E = st.E + hd * st.scale * Math.sin(az), N = st.N + hd * st.scale * Math.cos(az), Z = st.Z + dz;
+        return { ...b, hd: hd * st.scale, dE: (E - b.E) * 1000, dN: (N - b.N) * 1000, dZ: (Z - b.Z) * 1000 };
+      });
+      const by = {};
+      bs.forEach((b) => { (by[b.name] = by[b.name] || []).push(b); });
+      Object.entries(by).forEach(([name, L]) => stationRes.push({ station: st.name, name, hd: mean(L.map((b) => b.hd)), n: L.length, dE: mean(L.map((b) => b.dE)), dN: mean(L.map((b) => b.dN)), dZ: mean(L.map((b) => b.dZ)),
+        dZf1: L.some((b) => b.face === 1) ? mean(L.filter((b) => b.face === 1).map((b) => b.dZ)) : NaN, dZf2: L.some((b) => b.face === 2) ? mean(L.filter((b) => b.face === 2).map((b) => b.dZ)) : NaN }));
     });
-    const bsByPt = {};
-    bs.forEach((b) => { (bsByPt[b.name] = bsByPt[b.name] || []).push(b); });
-    const stationRes = Object.entries(bsByPt).map(([name, L]) => ({ name, hd: mean(L.map((b) => b.hd)), n: L.length, dE: mean(L.map((b) => b.dE)), dN: mean(L.map((b) => b.dN)), dZ: mean(L.map((b) => b.dZ)), dZf1: mean(L.filter((b) => b.face === 1).map((b) => b.dZ)), dZf2: mean(L.filter((b) => b.face === 2).map((b) => b.dZ)) }));
-    const checkPts = job.checks.map((c) => {
-      const same = job.backsights.some((b) => Math.abs(b.hz - c.hz) < 1e-4 && Math.abs(b.v - c.v) < 1e-4 && Math.abs(b.sd - c.sd) < 1e-4);
-      return { ...c, reused: same };
+    const checkPts = job.checks.filter((c) => usedSt.includes(c.st)).map((c) => {
+      const same = job.backsights.some((b) => b.st === c.st && Math.abs(b.hz - c.hz) < 1e-4 && Math.abs(b.v - c.v) < 1e-4 && Math.abs(b.sd - c.sd) < 1e-4);
+      return { ...c, reused: same, dH: Math.hypot(c.dE, c.dN) * 1000 };
     });
     if (checkPts.length && checkPts.every((c) => c.reused)) warnings.push("Les points de vérification du carnet reprennent les observations de la mise en station : ce ne sont pas des contrôles indépendants.");
+    checkPts.filter((c) => !c.reused && (c.dH > 5 || Math.abs(c.dZ * 1000) > 5)).forEach((c) => warnings.push(`Contrôle ${c.name} : écart ${fr(c.dH)} mm en plan, ${fr(c.dZ * 1000)} mm en altitude.`));
 
     // divers
     const odo = pts.filter((p) => Number.isFinite(p.tc)).map((p) => p.tc + Math.round((p.pk - p.tc) / 1e6) * 1e6 - p.pk);
@@ -674,15 +779,15 @@ const GedoEngine = (() => {
     if (gs.n > 10 && Math.abs(gs.mean) > 2 && gs.sd < 1) warnings.push(`Écartement décalé uniformément de ${fr(gs.mean)} mm (écart-type ${fr(gs.sd)} mm) : confirmer à la jauge (étalonnage possible du capteur).`);
 
     return {
-      params: P, G0, BASE, fixV, fixH, HP: good.length ? good[0].HP : (P.targetHeight ?? 0) + fixV,
+      params: P, G0, BASE, fixV: P.fixSideV ?? trFix(pts[0], 'fixV'), fixH: P.fixSideH ?? trFix(pts[0], 'fixH'), HP: good.length ? good[0].HP : pts[0].HP, lineInfo,
       design: { name: design.name, software: design.software, start: A.start, end: A.end, closure },
       alignment: A, points: pts, good, fwd, bwd, overlap, passDiff, bias, grid, conformity, statTable, zoneTable,
-      stationRes, checkPts, warnings, odo: odo.length ? { mean: mean(odo), min: Math.min(...odo), max: Math.max(...odo) } : null,
+      stationRes, stations, checkPts, warnings, odo: odo.length ? { mean: mean(odo), min: Math.min(...odo), max: Math.max(...odo) } : null,
       timeFrom: times[0], timeTo: times[times.length - 1],
       counts: { total: pts.length, fwd: pts.filter((p) => p.asc).length, bwd: pts.filter((p) => !p.asc).length, ok: good.length, rejected: pts.filter((p) => p.status === 'Rejeté').length, short: pts.filter((p) => p.status === 'Visée courte').length },
     };
   }
-  return { DEFAULTS, readDesign, makeAlignment, readJob, compute, stats };
+  return { DEFAULTS, readDesign, makeAlignment, readJob, compute, stats, surveyLines, matchLines, findSuspects, readControl, compareControl };
 })();
 if (typeof module !== 'undefined') module.exports = GedoEngine;
 
@@ -997,11 +1102,26 @@ const GedoReport = (() => {
       ['Coordonnées', P.coordSystem],
     ]);
 
+    h2('Lignes de levé traitées');
+    const LCx = P.lines || {};
+    table([{ t: 'Ligne', w: 0.14 }, { t: 'Sens carnet', w: 0.14 }, { t: 'Sens calcul', w: 0.14 }, { t: 'PK', w: 0.26 }, { t: 'Points', w: 0.1, a: 'right' }, { t: 'Points exclus', w: 0.22 }],
+      r.lineInfo.map((l) => {
+        const rec = l.recAsc === null ? '\u2013' : l.recAsc ? 'Ascendant' : 'Descendant';
+        const ex = (LCx[l.name] && LCx[l.name].exclude) || [];
+        return { cells: [l.name, rec, (l.asc ? 'Ascendant' : 'Descendant') + (l.recAsc !== null && l.recAsc !== l.asc ? ' (inversé)' : ''), `${pkf(l.from)} à ${pkf(l.to)}`, String(l.n), ex.length ? ex.join(', ') : '\u2013'],
+          colors: [null, null, l.recAsc !== null && l.recAsc !== l.asc ? { c: '#8a5a00', bold: true } : null] };
+      }));
+    if (meta.excludedLines && meta.excludedLines.length) para(`Lignes écartées du traitement : ${meta.excludedLines.join(', ')}.`);
+
     h2('Mise en station et contrôle');
-    const st = meta.station || {};
-    para(`Station ${st.name || ''} (${st.type || ''}) : E ${f(st.E, 4)} · N ${f(st.N, 4)} · Z ${f(st.Z, 4)}, orientation ${f(st.ori, 4)} gon, échelle ${st.scale}. Résidus moyens par repère (calculé − connu) :`);
-    table([{ t: 'Repère', w: 0.2 }, { t: 'Distance (m)', w: 0.14, a: 'right' }, { t: 'ΔE (mm)', w: 0.13, a: 'right' }, { t: 'ΔN (mm)', w: 0.13, a: 'right' }, { t: 'ΔZ (mm)', w: 0.13, a: 'right' }, { t: 'ΔZ face 1 / face 2', w: 0.27, a: 'right' }],
-      r.stationRes.map((s) => [s.name, f(s.hd, 1), f(s.dE, 1, true), f(s.dN, 1, true), f(s.dZ, 1, true), `${f(s.dZf1, 1, true)} / ${f(s.dZf2, 1, true)}`]));
+    (r.stations || []).forEach((st) => {
+      para(`Station ${st.name || ''} (${st.type || ''}) : E ${f(st.E, 4)} \u00b7 N ${f(st.N, 4)} \u00b7 Z ${f(st.Z, 4)}, orientation ${f(st.ori, 4)} gon, échelle ${st.scale}.`, { after: 2 });
+    });
+    para('Résidus moyens par repère (calculé \u2212 connu) :', { after: 3 });
+    table([{ t: 'Station', w: 0.16 }, { t: 'Repère', w: 0.14 }, { t: 'Dist. (m)', w: 0.11, a: 'right' }, { t: '\u0394E (mm)', w: 0.11, a: 'right' }, { t: '\u0394N (mm)', w: 0.11, a: 'right' }, { t: '\u0394Z (mm)', w: 0.11, a: 'right' }, { t: '\u0394Z face 1 / 2', w: 0.26, a: 'right' }],
+      r.stationRes.map((s) => [s.station || '', s.name, f(s.hd, 1), f(s.dE, 1, true), f(s.dN, 1, true), f(s.dZ, 1, true), `${f(s.dZf1, 1, true)} / ${f(s.dZf2, 1, true)}`]));
+    if (r.checkPts && r.checkPts.length) para(`Vérifications sur repère : ${r.checkPts.map((c) => `${c.name} ${f(c.dH, 1)} mm en plan, ${f(c.dZ * 1000, 1, true)} mm en altitude${c.reused ? ' (observations de la mise en station)' : ''}`).join(' ; ')}.`);
+    if (meta.ctrlCheck) para(meta.ctrlCheck);
 
     h2('Résultats');
     table([{ t: 'Paramètre (mm)', w: 0.3 }, { t: 'n', w: 0.07, a: 'right' }, { t: 'Moyenne', w: 0.11, a: 'right' }, { t: 'Écart-type', w: 0.11, a: 'right' }, { t: 'Min', w: 0.1, a: 'right' }, { t: 'Max', w: 0.1, a: 'right' }, { t: 'Écart max (PK)', w: 0.21, a: 'right' }],
@@ -1124,7 +1244,7 @@ const GedoReport = (() => {
     const P = r.params;
     [
       'NOTES', '',
-      `Survey: ${meta.jobName || ''} (${meta.product || ''}), ${date(r.timeFrom)}, trolley ${meta.trolley || ''}, station ${(meta.station || {}).name || ''}.`,
+      `Survey: ${meta.jobName || ''} (${meta.product || ''}), ${date(r.timeFrom)}, trolley ${meta.trolley || ''}, station(s) ${(r.stations || []).map((x) => x.name).join(', ')}.`,
       `Design: ${r.design.name} (${r.design.software}). Coordinates: ${P.coordSystem}.`,
       `Leading rail: ${P.leadingRail === 'auto' ? 'low rail in canted zones, left rail elsewhere' : P.leadingRail}.`,
       `Values every ${P.gridStep} m of chainage; RoC over ${P.rocBase} m; twist over ${P.twistBase} m.`,
@@ -1144,19 +1264,20 @@ if (typeof module !== 'undefined') module.exports = GedoReport;
 </script>
 <script>
 (() => {
-  const VERSION = 'v1.0 · 2026-09-29';
+  const VERSION = 'v1.1 · 2026-09-30';
   const $ = (id) => document.getElementById(id);
   const E = GedoEngine, R = GedoReport, X = MiniXML;
-  const state = { design: null, designName: '', job: null, jobName: '', result: null, files: [] };
+  const state = { designs: [], job: null, jobName: '', ctrl: null, ctrlName: '', lines: [], cfg: {}, suspects: {}, results: [], files: [] };
   const LS = 'gedo-rec-params-v1';
   const P0 = { th: '', fixV: '', lead: 'auto', minSight: 4, h: 6, v: 6, roc: 1, cant: 2, gmin: -1, gmax: 3, coord: E.DEFAULTS.coordSystem, author: '' };
   let prm = { ...P0 };
   try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s) prm = { ...P0, ...s }; } catch (e) { /* stockage indisponible */ }
   $('ver').textContent = VERSION;
   const EMPTY = $('out').innerHTML;
-
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const toast = (msg) => { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, 3500); };
   const f = R.f, pkf = R.pkf;
+  const num = (v) => parseFloat(String(v).replace(',', '.'));
 
   // ---------------------------------------------------------------- paramètres
   const fields = { th: 'p_th', fixV: 'p_fixV', lead: 'p_lead', minSight: 'p_minSight', h: 'p_h', v: 'p_v', roc: 'p_roc', cant: 'p_cant', gmin: 'p_gmin', gmax: 'p_gmax', coord: 'p_coord', author: 'p_author' };
@@ -1166,7 +1287,6 @@ if (typeof module !== 'undefined') module.exports = GedoReport;
     try { localStorage.setItem(LS, JSON.stringify(prm)); } catch (e) { /* ignoré */ }
     summarize();
   }
-  const num = (v) => parseFloat(String(v).replace(',', '.'));
   function summarize() {
     const j = state.job;
     const th = prm.th !== '' ? num(prm.th) : j && j.points[0] ? j.points[0].th : null;
@@ -1177,14 +1297,19 @@ if (typeof module !== 'undefined') module.exports = GedoReport;
   Object.values(fields).forEach((id) => $(id).addEventListener('change', readParams));
   $('resetParams').addEventListener('click', () => { prm = { ...P0 }; fillParams(); readParams(); toast('Paramètres rétablis'); });
   fillParams();
+  const engineParams = (lines) => ({
+    targetHeight: prm.th !== '' ? num(prm.th) : null, fixSideV: prm.fixV !== '' ? num(prm.fixV) : null,
+    leadingRail: prm.lead, minSight: num(prm.minSight), coordSystem: prm.coord, lines,
+    tol: { h: num(prm.h), v: num(prm.v), roc: num(prm.roc), cant: num(prm.cant), gaugeMin: num(prm.gmin), gaugeMax: num(prm.gmax) },
+  });
 
   // ---------------------------------------------------------------- fichiers
   $('pick').addEventListener('click', () => $('fileInput').click());
-  $('clear').addEventListener('click', () => { Object.assign(state, { design: null, job: null, result: null, files: [] }); renderFiles(); renderEmpty(); });
+  $('clear').addEventListener('click', () => { Object.assign(state, { designs: [], job: null, ctrl: null, lines: [], cfg: {}, suspects: {}, results: [], files: [] }); renderFiles(); renderLines(); renderEmpty(); });
   $('fileInput').addEventListener('change', async (ev) => {
     for (const file of ev.target.files) await loadFile(file);
     ev.target.value = '';
-    renderFiles(); summarize();
+    renderFiles(); summarize(); prepareLines();
   });
   async function loadFile(file) {
     const entry = { name: file.name, kind: '?', ok: false, note: '' };
@@ -1193,33 +1318,35 @@ if (typeof module !== 'undefined') module.exports = GedoReport;
       const head = String.fromCharCode(...buf.slice(0, 15));
       if (head === 'SQLite format 3') {
         const db = SqliteLite.open(buf);
-        const d = E.readDesign(db, 0);
-        state.db = db; state.design = d; state.designName = file.name;
-        entry.kind = 'Conception'; entry.ok = true;
-        entry.note = `${d.name} · PK ${pkf(d.axis[0].ch, 0)} à ${pkf(d.axis[d.axis.length - 1].ch, 0)} · ${d.refp.length} repères`;
-        state.files = state.files.filter((x) => x.kind !== 'Conception');
-        const sel = $('track'); sel.innerHTML = '';
-        d.tracks.forEach((t, i) => { const o = document.createElement('option'); o.value = i; o.textContent = t; sel.appendChild(o); });
-        $('trackWrap').hidden = d.tracks.length < 2;
+        const names = (db.table('track') || []).map((t) => t.name);
+        state.designs = state.designs.filter((d) => d.file !== file.name);
+        names.forEach((_, i) => { const d = E.readDesign(db, i); state.designs.push({ file: file.name, design: d }); });
+        const d = state.designs[state.designs.length - 1].design;
+        entry.kind = 'Alignement'; entry.ok = true;
+        entry.note = names.length > 1 ? `${names.length} voies : ${names.join(', ')}` : `${d.name} · PK ${pkf(d.axis[0].ch, 0)} à ${pkf(d.axis[d.axis.length - 1].ch, 0)}`;
       } else {
         const text = new TextDecoder('utf-8').decode(buf);
         if (text.includes('<JOBFile')) {
           const j = E.readJob(text, X);
           state.job = j; state.jobName = file.name;
-          entry.kind = 'Carnet'; entry.ok = true;
-          const d0 = j.points[0].time.slice(0, 10);
-          entry.note = `${j.jobName} · ${d0} · ${j.points.length} points de chariot · station ${j.station ? j.station.name : '?'}`;
           state.files = state.files.filter((x) => x.kind !== 'Carnet');
+          entry.kind = 'Carnet'; entry.ok = true;
+          const nl = new Set(j.points.map((p) => p.line)).size;
+          entry.note = `${j.jobName} · ${j.points[0].time.slice(0, 10)} · ${j.points.length} points · ${nl} ligne${nl > 1 ? 's' : ''} · ${j.stations.length} station${j.stations.length > 1 ? 's' : ''}`;
         } else if (/^\d+;/.test(text.trim())) {
           entry.kind = 'Carnet .job'; entry.note = 'Format .job non pris en charge : exportez le carnet en JobXML (.xml) depuis GEDO Rec.';
         } else {
-          entry.note = 'Fichier non reconnu (attendu : .sie de GEDO Office ou export .xml de GEDO Rec).';
+          const c = E.readControl(text);
+          if (Object.keys(c).length > 2) {
+            state.ctrl = c; state.ctrlName = file.name; state.files = state.files.filter((x) => x.kind !== 'Repères');
+            entry.kind = 'Repères'; entry.ok = true; entry.note = `${Object.keys(c).length} points de contrôle`;
+          } else entry.note = 'Fichier non reconnu (attendu : .sie de GEDO Office, export .xml de GEDO Rec ou .csv de repères).';
         }
       }
     } catch (e) { entry.note = e.message || String(e); }
+    state.files = state.files.filter((x) => x.name !== entry.name);
     state.files.push(entry);
   }
-  $('track').addEventListener('change', () => { try { state.design = E.readDesign(state.db, +$('track').value); toast(`Voie : ${state.design.name}`); } catch (e) { toast(e.message); } });
   function renderFiles() {
     const box = $('fileList'); box.innerHTML = '';
     state.files.forEach((x) => {
@@ -1229,45 +1356,123 @@ if (typeof module !== 'undefined') module.exports = GedoReport;
       box.appendChild(d);
     });
     $('clear').hidden = !state.files.length;
-    $('run').disabled = !(state.design && state.job);
+  }
+
+  // ---------------------------------------------------------------- lignes de levé
+  const parseExcl = (txt) => {
+    const out = [];
+    String(txt || '').split(/[\s,;]+/).filter(Boolean).forEach((tok) => {
+      const m = tok.match(/^(\d+)\s*[-à]\s*(\d+)$/);
+      if (m) { const a = +m[1], b = +m[2]; for (let i = Math.min(a, b); i <= Math.max(a, b); i++) out.push(String(i)); } else out.push(tok);
+    });
+    return out;
+  };
+  function prepareLines() {
+    if (!state.job || !state.designs.length) { renderLines(); return; }
+    state.lines = E.matchLines(state.designs.map((d) => d.design), state.job);
+    state.lines.forEach((l) => {
+      if (!state.cfg[l.name]) state.cfg[l.name] = { include: l.design >= 0, design: l.design, dir: 'auto', excl: '' };
+      else if (state.cfg[l.name].design >= state.designs.length) state.cfg[l.name].design = l.design;
+    });
+    refreshSuspects(); renderLines();
+  }
+  function groupCfg() {
+    const g = {};
+    state.lines.forEach((l) => {
+      const c = state.cfg[l.name];
+      if (!c.include || c.design < 0) return;
+      (g[c.design] = g[c.design] || {})[l.name] = { include: true, dir: c.dir, exclude: parseExcl(c.excl) };
+    });
+    return g;
+  }
+  function refreshSuspects() {
+    state.suspects = {};
+    const g = groupCfg();
+    Object.entries(g).forEach(([di, lines]) => {
+      try {
+        const noEx = Object.fromEntries(Object.entries(lines).map(([k, v]) => [k, { ...v, exclude: [] }]));
+        const r = E.compute(state.designs[di].design, state.job, engineParams(noEx));
+        Object.assign(state.suspects, E.findSuspects(r));
+      } catch (e) { /* voie sans point exploitable */ }
+    });
+  }
+  function renderLines() {
+    const box = $('lineList'); box.innerHTML = '';
+    $('step2').hidden = !(state.job && state.designs.length);
+    $('run').disabled = !Object.keys(groupCfg()).length;
+    if ($('step2').hidden) return;
+    const dirTxt = (d) => (d === 'Ascending' ? 'ascendant' : d === 'Descending' ? 'descendant' : 'inconnu');
+    state.lines.forEach((l) => {
+      const c = state.cfg[l.name];
+      const card = document.createElement('div'); card.className = 'line' + (c.include ? '' : ' off');
+      const sus = (state.suspects[l.name] || []);
+      const excl = parseExcl(c.excl);
+      card.innerHTML = `
+        <label class="lhead"><input type="checkbox" ${c.include ? 'checked' : ''} data-k="include"><b>Ligne ${esc(l.name)}</b><span class="muted">${l.n} pts (${esc(l.first)} à ${esc(l.last)}) · station ${esc(l.station)} · ${esc(l.t0.slice(11, 16))}–${esc(l.t1.slice(11, 16))}</span></label>
+        <div class="lgrid">
+          <label>Voie<select data-k="design"><option value="-1">— non traitée —</option>${state.designs.map((d, i) => `<option value="${i}" ${i === c.design ? 'selected' : ''}>${esc(d.design.name)}</option>`).join('')}</select></label>
+          <label>Sens de marche<select data-k="dir">
+            <option value="auto" ${c.dir === 'auto' ? 'selected' : ''}>Auto (${dirTxt(l.autoDir)})</option>
+            <option value="record" ${c.dir === 'record' ? 'selected' : ''}>Carnet : ${dirTxt(l.recDir)}</option>
+            <option value="asc" ${c.dir === 'asc' ? 'selected' : ''}>Ascendant</option>
+            <option value="desc" ${c.dir === 'desc' ? 'selected' : ''}>Descendant</option></select></label>
+          <label class="full">Points exclus (ex. 29-30, 173)<input data-k="excl" value="${esc(c.excl)}" placeholder="aucun"></label>
+        </div>
+        ${l.design >= 0 ? `<p class="muted">PK ${pkf(l.pk0)} → ${pkf(l.pk1)} sur ${esc(state.designs[l.design].design.name)}</p>` : '<p class="muted">Aucune voie chargée ne correspond à cette ligne.</p>'}
+        ${l.dirMismatch ? `<p class="flag">Le carnet indique ${dirTxt(l.recDir)}, mais le prisme était sur le rail d’un parcours ${dirTxt(l.autoDir)}. Le mode Auto corrige le sens.</p>` : ''}
+        ${sus.length ? `<div class="sus"><span class="muted">Points suspects (écart aux voisins) :</span>${sus.map((s) => `<button class="chip ${excl.includes(String(s.name)) ? 'on' : ''}" data-pt="${esc(s.name)}" title="${esc(s.why)}">${esc(s.name)} · ${esc(s.why)}</button>`).join('')}</div>` : ''}`;
+      card.querySelectorAll('[data-k]').forEach((el) => el.addEventListener('change', () => {
+        const k = el.dataset.k;
+        c[k] = k === 'include' ? el.checked : k === 'design' ? +el.value : el.value.trim();
+        refreshSuspects(); renderLines();
+      }));
+      card.querySelectorAll('[data-pt]').forEach((b) => b.addEventListener('click', () => {
+        const ex = parseExcl(c.excl), n = b.dataset.pt;
+        const next = ex.includes(n) ? ex.filter((x) => x !== n) : [...ex, n];
+        c.excl = next.join(', '); renderLines();
+      }));
+      box.appendChild(card);
+    });
   }
 
   // ---------------------------------------------------------------- calcul
   $('run').addEventListener('click', () => {
     readParams();
-    try {
-      const params = {
-        targetHeight: prm.th !== '' ? num(prm.th) : null, fixSideV: prm.fixV !== '' ? num(prm.fixV) : null,
-        leadingRail: prm.lead, minSight: num(prm.minSight), coordSystem: prm.coord,
-        tol: { h: num(prm.h), v: num(prm.v), roc: num(prm.roc), cant: num(prm.cant), gaugeMin: num(prm.gmin), gaugeMax: num(prm.gmax) },
-      };
-      state.result = E.compute(state.design, state.job, params);
-      renderResults();
-      $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } catch (e) {
-      console.error(e);
-      $('out').className = ''; $('out').innerHTML = '';
-      const d = document.createElement('div'); d.className = 'err';
-      d.textContent = `Le calcul a échoué : ${e.message}. Vérifiez que le carnet et le fichier .sie correspondent au même secteur.`;
-      $('out').appendChild(d);
-    }
+    const g = groupCfg();
+    state.results = [];
+    const errs = [];
+    Object.entries(g).forEach(([di, lines]) => {
+      try {
+        const r = E.compute(state.designs[di].design, state.job, engineParams(lines));
+        const excludedLines = state.lines.filter((l) => l.design === +di && !state.cfg[l.name].include).map((l) => l.name);
+        state.results.push({ r, excludedLines });
+      } catch (e) { console.error(e); errs.push(`${state.designs[di].design.name} : ${e.message}`); }
+    });
+    renderResults(errs);
+    $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
   function renderEmpty() { $('out').className = 'empty'; $('out').innerHTML = EMPTY; }
 
-  const meta = () => {
-    const j = state.job;
-    return { jobName: j.jobName, product: j.product, trolley: j.trolley ? j.trolley.name : '', station: j.station, author: prm.author,
+  const meta = (res) => {
+    const j = state.job, r = res.r;
+    let ctrlCheck = '';
+    if (state.ctrl) {
+      const cmp = E.compareControl(j, state.ctrl).filter((c) => (r.stationRes || []).some((s) => s.name === c.name));
+      const bad = cmp.filter((c) => !c.found || Math.hypot(c.dE, c.dN) > 1 || Math.abs(c.dZ) > 1);
+      ctrlCheck = `Coordonnées des repères de station comparées au fichier ${state.ctrlName} : ${bad.length ? bad.map((c) => (c.found ? `${c.name} diffère (${f(c.dE, 1)} / ${f(c.dN, 1)} / ${f(c.dZ, 1)} mm)` : `${c.name} absent`)).join(', ') : `${cmp.length} repères identiques`}.`;
+    }
+    return { jobName: j.jobName, product: j.product, trolley: j.trolley ? j.trolley.name : '', author: prm.author, excludedLines: res.excludedLines, ctrlCheck,
       weather: j.weather ? `${f(j.weather.t, 1)} °C, ${f(j.weather.p, 1)} mbar, coefficient de réfraction ${f(j.weather.k, 3)}` : '', title: 'Rapport de levé de voie' };
   };
 
-  function svgChart(title, series, o = {}) {
-    const r = state.result, W = 720, H = 240, x0 = 46, x1 = W - 10, y0 = 34, y1 = H - 30;
+  function svgChart(r, title, series, o = {}) {
+    const W = 720, H = 240, x0 = 46, x1 = W - 10, y0 = 34, y1 = H - 30;
     const xs = r.grid.map((g) => g.pk), xmin = xs[0], xmax = xs[xs.length - 1];
     let vals = series.flatMap((s) => s.pts.map((p) => p[1]).filter(Number.isFinite)); (o.refs || []).forEach((q) => vals.push(q.v));
     let lo = Math.min(...vals), hi = Math.max(...vals); if (hi - lo < 2) { lo -= 1; hi += 1; }
     const st = [0.5, 1, 2, 5, 10, 20, 50].find((s) => (hi - lo) / s <= 6) || 100; lo = Math.floor(lo / st) * st; hi = Math.ceil(hi / st) * st;
     const X = (v) => x0 + ((v - xmin) / (xmax - xmin || 1)) * (x1 - x0), Y = (v) => y1 - ((v - lo) / (hi - lo)) * (y1 - y0);
-    let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}"><text class="t" x="0" y="16">${title}</text>`;
+    let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}"><text class="t" x="0" y="16">${esc(title)}</text>`;
     for (let t = lo; t <= hi + 1e-9; t += st) s += `<line x1="${x0}" x2="${x1}" y1="${Y(t)}" y2="${Y(t)}" stroke="var(--grid)" stroke-width="${Math.abs(t) < 1e-9 ? 1.5 : 1}"/><text x="${x0 - 6}" y="${Y(t) + 4}" text-anchor="end">${f(t, st < 1 ? 1 : 0)}</text>`;
     const xst = [5, 10, 20, 25, 50, 100, 200, 500].find((q) => (xmax - xmin) / q <= 8) || 1000;
     for (let t = Math.ceil(xmin / xst) * xst; t <= xmax; t += xst) s += `<text x="${X(t)}" y="${H - 10}" text-anchor="middle">${pkf(t, 0)}</text>`;
@@ -1278,61 +1483,61 @@ if (typeof module !== 'undefined') module.exports = GedoReport;
       s += `<path d="${d}" fill="none" stroke="${se.color}" stroke-width="2" stroke-linejoin="round"/>`;
     });
     s += '</svg>';
-    const lg = `<div class="legend">${series.map((se) => `<span><i style="background:${se.color}"></i>${se.name}</span>`).join('')}${o.refs ? '<span><i style="background:var(--tol)"></i>Tolérance</span>' : ''}</div>`;
-    return s + lg;
+    return s + `<div class="legend">${series.map((se) => `<span><i style="background:${se.color}"></i>${esc(se.name)}</span>`).join('')}${o.refs ? '<span><i style="background:var(--tol)"></i>Tolérance</span>' : ''}</div>`;
   }
 
-  function renderResults() {
-    const r = state.result, S = R.summary(r), g = r.grid, T = r.params.tol;
+  function renderResults(errs = []) {
     const out = $('out'); out.className = ''; out.innerHTML = '';
-    const add = (html) => { out.insertAdjacentHTML('beforeend', html); };
-    const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-    add(`<div class="verdict ${S.nok.length ? 'bad' : 'good'}">${esc(S.text)}</div>`);
-    add(`<div class="row"><button class="primary" id="dlPdf">Rapport PDF</button><button id="dlXlsx">Tableau Excel</button></div>`);
-    add('<h3>Conformité</h3><div class="checks">' + r.conformity.map((c) => {
-      const m = c.key === 'gauge' ? `${f(c.stats.min, 1)} à ${f(c.stats.max, 1)} mm` : c.key.endsWith('Roc') ? `max ${f(c.stats.max, 1)} mm` : `${f(c.stats.min, 1, true)} à ${f(c.stats.max, 1, true)} mm`;
-      const where = c.nOut ? ` · hors tolérance : ${c.nOut}/${c.n} (${R.ranges(c.pks)})` : '';
-      return `<div class="chk"><span class="l">${esc(c.label)}</span><span class="pill ${c.ok ? 'ok' : 'no'}">${c.ok ? 'Conforme' : 'Non conforme'}</span><span class="v">Tol. ${esc(c.tol)} · mesuré ${m}${esc(where)}</span></div>`;
-    }).join('') + '</div>');
-    if (r.warnings.length) add('<h3>Points d’attention</h3><ul class="warns">' + r.warnings.map((w) => `<li>${esc(w)}</li>`).join('') + '</ul>');
-    add('<h3>Graphiques</h3>');
-    add(svgChart('Écart horizontal du rail directeur (mm)', [{ name: 'Rail directeur', color: 'var(--s1)', pts: g.map((q) => [q.pk, q.hDev]) }], { refs: [{ v: T.h }, { v: -T.h }] }));
-    add(svgChart('Nivellement (mm)', [{ name: 'Rail gauche', color: 'var(--s1)', pts: g.map((q) => [q.pk, q.dZL]) }, { name: 'Rail droit', color: 'var(--s2)', pts: g.map((q) => [q.pk, q.dZR]) }], { refs: [{ v: T.v }, { v: -T.v }] }));
-    add(svgChart('Écartement (mm)', [{ name: 'Écartement', color: 'var(--s1)', pts: g.map((q) => [q.pk, q.gauge]) }], { refs: [{ v: r.G0 * 1000 + T.gaugeMin }, { v: r.G0 * 1000 + T.gaugeMax }] }));
-    add(svgChart('Dévers (mm)', [{ name: 'Mesuré', color: 'var(--s1)', pts: g.map((q) => [q.pk, q.cant]) }, { name: 'Théorique', color: 'var(--s2)', pts: g.map((q) => [q.pk, q.cantTh]) }]));
-    add('<h3>Statistiques (grille de 1 m)</h3><div class="tbl"><table><thead><tr><th>Paramètre (mm)</th><th>n</th><th>Moy.</th><th>É.-t.</th><th>Min</th><th>Max</th><th>Max au PK</th></tr></thead><tbody>' +
-      r.statTable.map((s) => `<tr><td>${esc(s.label)}</td><td>${s.n}</td><td>${f(s.mean, 1, true)}</td><td>${f(s.sd, 1)}</td><td>${f(s.min, 1, true)}</td><td>${f(s.max, 1, true)}</td><td>${pkf(s.worstPk, 0)}</td></tr>`).join('') + '</tbody></table></div>');
-    add('<h3>Mise en station</h3><div class="tbl"><table><thead><tr><th>Repère</th><th>Dist. (m)</th><th>ΔE</th><th>ΔN</th><th>ΔZ (mm)</th></tr></thead><tbody>' +
-      r.stationRes.map((s) => `<tr><td>${esc(s.name)}</td><td>${f(s.hd, 1)}</td><td>${f(s.dE, 1, true)}</td><td>${f(s.dN, 1, true)}</td><td>${f(s.dZ, 1, true)}</td></tr>`).join('') + '</tbody></table></div>');
-    const c = r.counts;
-    add(`<p class="muted">${c.total} points (${c.fwd} aller, ${c.bwd} retour) · ${c.ok} retenus · ${c.rejected} rejeté(s) · ${c.short} visée(s) courte(s). Axe : ${esc(r.design.name)}. Prisme à ${f(r.HP, 4)} m du rail.</p>`);
-    $('dlPdf').addEventListener('click', () => save('pdf'));
-    $('dlXlsx').addEventListener('click', () => save('xlsx'));
+    const add = (html, el = out) => { el.insertAdjacentHTML('beforeend', html); };
+    errs.forEach((e) => add(`<div class="err">Le calcul a échoué pour ${esc(e)}.</div>`));
+    if (state.results.length > 1) add(`<p class="muted">${state.results.length} voies traitées : ${state.results.map((x) => esc(x.r.design.name)).join(' · ')}</p>`);
+    state.results.forEach((res, ri) => {
+      const r = res.r, S = R.summary(r), g = r.grid, T = r.params.tol;
+      const sec = document.createElement('div'); sec.className = 'voie'; out.appendChild(sec);
+      add(`<h3 class="vt">${esc(r.design.name)}</h3>`, sec);
+      add(`<div class="verdict ${S.nok.length ? 'bad' : 'good'}">${esc(S.text)}</div>`, sec);
+      add(`<div class="row"><button class="primary" data-dl="pdf">Rapport PDF</button><button data-dl="xlsx">Tableau Excel</button></div>`, sec);
+      add('<h3>Conformité</h3><div class="checks">' + r.conformity.map((c) => {
+        const m = c.key === 'gauge' ? `${f(c.stats.min, 1)} à ${f(c.stats.max, 1)} mm` : c.key.endsWith('Roc') ? `max ${f(c.stats.max, 1)} mm` : `${f(c.stats.min, 1, true)} à ${f(c.stats.max, 1, true)} mm`;
+        const where = c.nOut ? ` · hors tolérance : ${c.nOut}/${c.n} (${R.ranges(c.pks)})` : '';
+        return `<div class="chk"><span class="l">${esc(c.label)}</span><span class="pill ${c.ok ? 'ok' : 'no'}">${c.ok ? 'Conforme' : 'Non conforme'}</span><span class="v">Tol. ${esc(c.tol)} · mesuré ${m}${esc(where)}</span></div>`;
+      }).join('') + '</div>', sec);
+      if (r.warnings.length) add('<h3>Points d’attention</h3><ul class="warns">' + r.warnings.map((w) => `<li>${esc(w)}</li>`).join('') + '</ul>', sec);
+      add('<h3>Graphiques</h3>', sec);
+      add(svgChart(r, 'Écart horizontal du rail directeur (mm)', [{ name: 'Rail directeur', color: 'var(--s1)', pts: g.map((q) => [q.pk, q.hDev]) }], { refs: [{ v: T.h }, { v: -T.h }] }), sec);
+      add(svgChart(r, 'Nivellement (mm)', [{ name: 'Rail gauche', color: 'var(--s1)', pts: g.map((q) => [q.pk, q.dZL]) }, { name: 'Rail droit', color: 'var(--s2)', pts: g.map((q) => [q.pk, q.dZR]) }], { refs: [{ v: T.v }, { v: -T.v }] }), sec);
+      add(svgChart(r, 'Écartement (mm)', [{ name: 'Écartement', color: 'var(--s1)', pts: g.map((q) => [q.pk, q.gauge]) }], { refs: [{ v: r.G0 * 1000 + T.gaugeMin }, { v: r.G0 * 1000 + T.gaugeMax }] }), sec);
+      add(svgChart(r, 'Dévers (mm)', [{ name: 'Mesuré', color: 'var(--s1)', pts: g.map((q) => [q.pk, q.cant]) }, { name: 'Théorique', color: 'var(--s2)', pts: g.map((q) => [q.pk, q.cantTh]) }]), sec);
+      add('<h3>Statistiques (grille de 1 m)</h3><div class="tbl"><table><thead><tr><th>Paramètre (mm)</th><th>n</th><th>Moy.</th><th>É.-t.</th><th>Min</th><th>Max</th><th>Max au PK</th></tr></thead><tbody>' +
+        r.statTable.map((s) => `<tr><td>${esc(s.label)}</td><td>${s.n}</td><td>${f(s.mean, 1, true)}</td><td>${f(s.sd, 1)}</td><td>${f(s.min, 1, true)}</td><td>${f(s.max, 1, true)}</td><td>${pkf(s.worstPk, 0)}</td></tr>`).join('') + '</tbody></table></div>', sec);
+      add('<h3>Mise en station</h3><div class="tbl"><table><thead><tr><th>Station · repère</th><th>Dist. (m)</th><th>ΔE</th><th>ΔN</th><th>ΔZ (mm)</th></tr></thead><tbody>' +
+        r.stationRes.map((s) => `<tr><td>${esc(s.station)} · ${esc(s.name)}</td><td>${f(s.hd, 1)}</td><td>${f(s.dE, 1, true)}</td><td>${f(s.dN, 1, true)}</td><td>${f(s.dZ, 1, true)}</td></tr>`).join('') + '</tbody></table></div>', sec);
+      const c = r.counts;
+      add(`<p class="muted">${c.total} points (${c.fwd} aller, ${c.bwd} retour) · ${c.ok} retenus · ${c.rejected} rejeté(s) · ${c.short} visée(s) courte(s). Prisme à ${f(r.HP, 4)} m du rail.</p>`, sec);
+      sec.querySelector('[data-dl="pdf"]').addEventListener('click', () => save(ri, 'pdf'));
+      sec.querySelector('[data-dl="xlsx"]').addEventListener('click', () => save(ri, 'xlsx'));
+    });
   }
 
   // ---------------------------------------------------------------- export
-  async function save(kind) {
-    const r = state.result, g = r.grid;
+  async function save(ri, kind) {
+    const res = state.results[ri], r = res.r, g = r.grid;
     const base = `${r.design.name}_${(r.timeFrom || '').slice(0, 10)}_PK${Math.round(g[0].pk)}-${Math.round(g[g.length - 1].pk)}`.replace(/[^A-Za-z0-9_.-]+/g, '_');
     let data, name, mime;
     try {
-      if (kind === 'pdf') { data = R.pdf(r, meta()); name = `Rapport_${base}.pdf`; mime = 'application/pdf'; }
-      else { data = R.excel(r, meta()); name = `Ecarts_${base}.xlsx`; mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'; }
+      if (kind === 'pdf') { data = R.pdf(r, meta(res)); name = `Rapport_${base}.pdf`; mime = 'application/pdf'; }
+      else { data = R.excel(r, meta(res)); name = `Ecarts_${base}.xlsx`; mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'; }
     } catch (e) { console.error(e); toast(`Génération impossible : ${e.message}`); return; }
-    // 1) visionneuse claude.ai (capacité downloads)
     try {
-      const dl = window.claude && window.claude.use ? await Promise.race([window.claude.use('downloads'), new Promise((res) => setTimeout(() => res(null), 1500))]) : null;
+      const dl = window.claude && window.claude.use ? await Promise.race([window.claude.use('downloads'), new Promise((res2) => setTimeout(() => res2(null), 1500))]) : null;
       if (dl) { await dl.save({ filename: name, data: new Blob([data], { type: mime }) }); toast('Fichier enregistré'); return; }
     } catch (e) { if (e && e.code === 'declined') return; }
     const file = new File([data], name, { type: mime });
-    // 2) feuille de partage iOS / Android
     try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
-    // 3) téléchargement classique
     const url = URL.createObjectURL(file); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
 
-  // mode hors ligne (GitHub Pages)
   if ('serviceWorker' in navigator && /github\.io$/.test(location.hostname)) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
 </script>
