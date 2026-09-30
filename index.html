@@ -1,0 +1,1340 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>GEDO REC Rapport</title>
+<meta name="theme-color" content="#1d2a26">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="GEDO REC">
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png"><link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Mise en page : une colonne d'outil de terrain — étapes (fichiers, paramètres) puis verdict, graphiques et exports. */
+:root {
+  --bg: #eef1ef; --surface: #ffffff; --sunk: #e3e8e5; --ink: #17221e; --muted: #5a6964; --line: #cfd8d4;
+  --accent: #a85f00; --accent-ink: #ffffff; --good: #1f7a45; --good-bg: #e3f3e9; --bad: #b3261e; --bad-bg: #fbe9e7; --warn: #8a5a00; --warn-bg: #fff3dc;
+  --s1: #1f6fb2; --s2: #d0730c; --grid: #dde4e1; --tol: #b3261e;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121916; --surface: #1a2320; --sunk: #222d29; --ink: #e6ece9; --muted: #9aaaa4; --line: #33403b;
+  --accent: #f0a23b; --accent-ink: #1a1206; --good: #6fd39a; --good-bg: #16301f; --bad: #ff8a80; --bad-bg: #3a1a18; --warn: #f3c46b; --warn-bg: #33280f;
+  --s1: #6cb2ee; --s2: #f3a14a; --grid: #2a3531; --tol: #ff8a80; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #121916; --surface: #1a2320; --sunk: #222d29; --ink: #e6ece9; --muted: #9aaaa4; --line: #33403b;
+  --accent: #f0a23b; --accent-ink: #1a1206; --good: #6fd39a; --good-bg: #16301f; --bad: #ff8a80; --bad-bg: #3a1a18; --warn: #f3c46b; --warn-bg: #33280f;
+  --s1: #6cb2ee; --s2: #f3a14a; --grid: #2a3531; --tol: #ff8a80; color-scheme: dark; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); margin: 0; }
+.wrap { max-width: 860px; margin: 0 auto; padding-inline: 16px; padding-block: 18px 48px; display: grid; gap: 16px; }
+header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font: 700 1.55rem/1.1 var(--display); letter-spacing: .01em; margin: 0; text-wrap: balance; }
+h1 small { display: block; font: 500 .8rem var(--body); color: var(--muted); letter-spacing: .06em; text-transform: uppercase; margin-top: 4px; }
+.ver { font: 400 .75rem var(--mono); color: var(--muted); }
+section.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+h2 { font: 600 1.1rem var(--display); margin: 0; display: flex; gap: 10px; align-items: center; }
+h2 .step { font: 500 .72rem var(--mono); color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 1px 6px; }
+h3 { font: 600 .95rem var(--display); margin: 6px 0 0; }
+p { margin: 0; }
+.muted { color: var(--muted); font-size: .88rem; }
+button, .btn { font: 600 .95rem var(--body); border-radius: 8px; border: 1px solid var(--line); background: var(--sunk); color: var(--ink); padding: 11px 16px; cursor: pointer; min-height: 44px; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.files { display: grid; gap: 8px; }
+.file { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: center; padding: 10px 12px; border-radius: 8px; background: var(--sunk); min-width: 0; }
+.file b { font: 600 .9rem var(--display); }
+.file span { overflow-wrap: anywhere; font: .85rem var(--mono); }
+.file .st { grid-row: span 2; font: 600 .7rem var(--mono); padding: 3px 7px; border-radius: 4px; background: var(--line); color: var(--muted); }
+.file.ok .st { background: var(--good-bg); color: var(--good); }
+details { border-top: 1px solid var(--line); padding-top: 10px; }
+summary { cursor: pointer; font-weight: 600; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+label { display: grid; gap: 4px; font-size: .8rem; color: var(--muted); }
+input, select, textarea { font: 400 .95rem var(--mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; width: 100%; min-width: 0; }
+textarea { font-family: var(--body); min-height: 60px; }
+.full { grid-column: 1 / -1; }
+.verdict { border-radius: 10px; padding: 14px 16px; font-weight: 500; }
+.verdict.bad { background: var(--bad-bg); color: var(--ink); border: 1px solid var(--bad); }
+.verdict.good { background: var(--good-bg); border: 1px solid var(--good); }
+.checks { display: grid; gap: 8px; }
+.chk { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 12px; border-radius: 8px; background: var(--sunk); min-width: 0; }
+.chk .l { font: 600 .92rem var(--display); }
+.chk .v { font: .82rem var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+.pill { grid-row: span 2; align-self: center; font: 600 .72rem var(--mono); padding: 4px 8px; border-radius: 999px; }
+.pill.ok { background: var(--good-bg); color: var(--good); }
+.pill.no { background: var(--bad-bg); color: var(--bad); }
+.warns { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.warns li { background: var(--warn-bg); color: var(--ink); border-radius: 8px; padding: 8px 12px; font-size: .88rem; border-left: 3px solid var(--warn); }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .82rem; font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { font: 600 .74rem var(--body); color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+td { font-family: var(--mono); }
+td:first-child { font-family: var(--body); }
+.chart { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--muted); font: 11px var(--mono); }
+.chart .t { fill: var(--ink); font: 600 13px var(--display); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); }
+.legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+.err { background: var(--bad-bg); border: 1px solid var(--bad); border-radius: 8px; padding: 10px 12px; font-size: .9rem; }
+#out { min-width: 0; display: grid; gap: 12px; }
+#out > * { min-width: 0; }
+.empty { display: grid; gap: 8px; }
+.empty ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: .9rem; max-width: calc(100% - 32px); }
+@media (prefers-reduced-motion: no-preference) { .card { transition: border-color .2s; } }
+</style>
+
+</head><body>
+<div class="wrap">
+  <header class="top">
+    <h1>GEDO REC Rapport<small>Levé de voie au chariot · écarts et conformité</small></h1>
+    <span class="ver" id="ver"></span>
+  </header>
+
+  <section class="card" id="step1">
+    <h2><span class="step">1</span>Fichiers du levé</h2>
+    <p class="muted">Choisissez le fichier <b>.sie</b> du secteur (alignement, profil, dévers, repères) et l'export <b>.xml</b> du carnet GEDO Rec. Sur iPhone, la clé USB-C apparaît dans Fichiers, sous Emplacements.</p>
+    <div class="row">
+      <button class="primary" id="pick">Choisir les fichiers</button>
+      <input type="file" id="fileInput" multiple hidden>
+      <button id="clear" hidden>Retirer les fichiers</button>
+    </div>
+    <div class="files" id="fileList"></div>
+    <label id="trackWrap" hidden>Voie dans le fichier .sie<select id="track"></select></label>
+  </section>
+
+  <section class="card" id="step2">
+    <h2><span class="step">2</span>Paramètres</h2>
+    <p class="muted" id="paramSummary"></p>
+    <details id="paramBox">
+      <summary>Modifier les paramètres</summary>
+      <div class="grid2">
+        <label>Hauteur de cible (m)<input id="p_th" inputmode="decimal" placeholder="carnet"></label>
+        <label>Décalage vertical côté fixe (m)<input id="p_fixV" inputmode="decimal" placeholder="carnet"></label>
+        <label>Rail directeur<select id="p_lead"><option value="auto">Auto (rail bas en courbe, sinon gauche)</option><option value="L">Gauche</option><option value="R">Droit</option></select></label>
+        <label>Visée minimale (m)<input id="p_minSight" inputmode="decimal"></label>
+        <label>Tolérance plan ± (mm)<input id="p_h" inputmode="decimal"></label>
+        <label>Tolérance nivellement ± (mm)<input id="p_v" inputmode="decimal"></label>
+        <label>Taux de variation (mm / 2 m)<input id="p_roc" inputmode="decimal"></label>
+        <label>Dévers ± (mm)<input id="p_cant" inputmode="decimal"></label>
+        <label>Écartement min (mm)<input id="p_gmin" inputmode="decimal"></label>
+        <label>Écartement max (mm)<input id="p_gmax" inputmode="decimal"></label>
+        <label class="full">Système de coordonnées<textarea id="p_coord"></textarea></label>
+        <label class="full">Auteur du rapport<input id="p_author" placeholder="Nom, firme"></label>
+      </div>
+      <div class="row" style="margin-top:10px"><button id="resetParams">Rétablir les valeurs par défaut</button></div>
+    </details>
+    <div class="row"><button class="primary" id="run" disabled>Calculer les écarts</button></div>
+  </section>
+
+  <section class="card" id="results">
+    <h2><span class="step">3</span>Résultats</h2>
+    <div id="out" class="empty">
+      <p class="muted">Les résultats apparaîtront ici :</p>
+      <ol class="muted">
+        <li>verdict de conformité par paramètre (plan, nivellement, taux de variation, écartement, dévers) ;</li>
+        <li>graphiques des écarts en fonction du PK, avec les lignes de tolérance ;</li>
+        <li>rapport PDF et tableau Excel au format du rapport de référence.</li>
+      </ol>
+      <p class="muted">Les fichiers sont traités sur l'appareil ; rien n'est envoyé en ligne.</p>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const FONT_W={"Helvetica": [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556, 1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556, 333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584, 761, 556, 761, 222, 556, 333, 1000, 556, 556, 333, 1000, 667, 333, 1000, 761, 611, 761, 761, 222, 222, 333, 333, 350, 556, 1000, 333, 1000, 500, 333, 944, 761, 500, 667, 278, 333, 556, 556, 556, 556, 260, 556, 333, 737, 370, 556, 584, 333, 737, 333, 400, 584, 333, 333, 333, 556, 537, 278, 333, 333, 365, 556, 834, 834, 834, 611, 667, 667, 667, 667, 667, 667, 1000, 722, 667, 667, 667, 667, 278, 278, 278, 278, 722, 722, 778, 778, 778, 778, 778, 584, 778, 722, 722, 722, 722, 667, 667, 611, 556, 556, 556, 556, 556, 556, 889, 500, 556, 556, 556, 556, 278, 278, 278, 278, 556, 556, 556, 556, 556, 556, 556, 584, 611, 556, 556, 556, 556, 500, 556, 500], "Helvetica-Bold": [278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 333, 333, 584, 584, 584, 611, 975, 722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 333, 278, 333, 584, 556, 333, 556, 611, 556, 611, 556, 333, 611, 611, 278, 278, 556, 278, 889, 611, 611, 611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500, 389, 280, 389, 584, 761, 556, 761, 278, 556, 500, 1000, 556, 556, 333, 1000, 667, 333, 1000, 761, 611, 761, 761, 278, 278, 500, 500, 350, 556, 1000, 333, 1000, 556, 333, 944, 761, 500, 667, 278, 333, 556, 556, 556, 556, 280, 556, 333, 737, 370, 556, 584, 333, 737, 333, 400, 584, 333, 333, 333, 611, 556, 278, 333, 333, 365, 556, 834, 834, 834, 611, 722, 722, 722, 722, 722, 722, 1000, 722, 667, 667, 667, 667, 278, 278, 278, 278, 722, 722, 778, 778, 778, 778, 778, 584, 778, 722, 722, 722, 722, 667, 667, 611, 556, 556, 556, 556, 556, 556, 889, 556, 556, 556, 556, 556, 278, 278, 278, 278, 611, 611, 611, 611, 611, 611, 611, 584, 611, 611, 611, 611, 611, 556, 611, 556]};
+if(typeof module!=="undefined")module.exports=FONT_W;
+
+// Lecteur SQLite minimal (lecture seule) — suffisant pour les fichiers .sie de GEDO Office.
+// Aucune dépendance. Lit les tables b-tree (feuilles et nœuds internes) et les pages de débordement.
+const SqliteLite = (() => {
+  function open(buf) {
+    const u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+    const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+    const magic = String.fromCharCode(...u8.slice(0, 15));
+    if (magic !== 'SQLite format 3') throw new Error("Le fichier .sie n'est pas une base SQLite valide.");
+    let pageSize = dv.getUint16(16);
+    if (pageSize === 1) pageSize = 65536;
+    const reserved = u8[20];
+    const usable = pageSize - reserved;
+    const dec = new TextDecoder('utf-8');
+
+    function varint(p) {
+      let v = 0n;
+      for (let i = 0; i < 9; i++) {
+        const b = u8[p + i];
+        if (i === 8) { v = (v << 8n) | BigInt(b); return [v, 9]; }
+        v = (v << 7n) | BigInt(b & 0x7f);
+        if (!(b & 0x80)) return [v, i + 1];
+      }
+    }
+    const pageOff = (n) => (n - 1) * pageSize;
+
+    function payload(p, P) {
+      const X = usable - 35;
+      if (P <= X) return u8.slice(p, p + P);
+      const M = Math.floor(((usable - 12) * 32) / 255) - 23;
+      const K = M + ((P - M) % (usable - 4));
+      const local = K <= X ? K : M;
+      const out = new Uint8Array(P);
+      out.set(u8.subarray(p, p + local), 0);
+      let got = local;
+      let next = dv.getUint32(p + local);
+      while (got < P && next) {
+        const o = pageOff(next);
+        const n = Math.min(usable - 4, P - got);
+        out.set(u8.subarray(o + 4, o + 4 + n), got);
+        got += n;
+        next = dv.getUint32(o);
+      }
+      return out;
+    }
+
+    function record(bytes) {
+      const d = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      const rv = (p) => {
+        let v = 0;
+        for (let i = 0; i < 9; i++) {
+          const b = bytes[p + i];
+          if (i === 8) return [v * 256 + b, 9];
+          v = v * 128 + (b & 0x7f);
+          if (!(b & 0x80)) return [v, i + 1];
+        }
+      };
+      let [hs, n] = rv(0);
+      let p = n;
+      const types = [];
+      while (p < hs) { const [t, k] = rv(p); types.push(t); p += k; }
+      let q = hs;
+      const vals = [];
+      for (const t of types) {
+        let v = null;
+        if (t === 0) v = null;
+        else if (t >= 1 && t <= 6) {
+          const len = [0, 1, 2, 3, 4, 6, 8][t];
+          let x = 0n;
+          for (let i = 0; i < len; i++) x = (x << 8n) | BigInt(bytes[q + i]);
+          const bits = BigInt(len * 8);
+          if (x & (1n << (bits - 1n))) x -= 1n << bits;
+          v = Number(x); q += len;
+        } else if (t === 7) { v = d.getFloat64(q); q += 8; }
+        else if (t === 8) v = 0;
+        else if (t === 9) v = 1;
+        else if (t >= 12 && t % 2 === 0) { const l = (t - 12) / 2; v = bytes.slice(q, q + l); q += l; }
+        else if (t >= 13) { const l = (t - 13) / 2; v = dec.decode(bytes.subarray(q, q + l)); q += l; }
+        vals.push(v);
+      }
+      return vals;
+    }
+
+    function walk(pageNo, out) {
+      const base = pageOff(pageNo);
+      const h = pageNo === 1 ? base + 100 : base;
+      const type = u8[h];
+      const nCells = dv.getUint16(h + 3);
+      const hdr = type === 0x05 || type === 0x02 ? 12 : 8;
+      for (let i = 0; i < nCells; i++) {
+        const cp = base + dv.getUint16(h + hdr + 2 * i);
+        if (type === 0x0d) {
+          const [P, a] = varint(cp);
+          const [rowid, b] = varint(cp + a);
+          const rec = record(payload(cp + a + b, Number(P)));
+          out.push({ rowid: Number(rowid), vals: rec });
+        } else if (type === 0x05) {
+          walk(dv.getUint32(cp), out);
+        }
+      }
+      if (type === 0x05) walk(dv.getUint32(h + 8), out);
+      return out;
+    }
+
+    const master = walk(1, []).map((r) => ({ type: r.vals[0], name: r.vals[1], root: r.vals[3], sql: r.vals[4] }));
+
+    function columns(sql) {
+      const inner = sql.slice(sql.indexOf('(') + 1, sql.lastIndexOf(')'));
+      return inner.split(',').map((s) => s.trim().split(/\s+/)[0].replace(/["`\[\]]/g, '')).filter(Boolean);
+    }
+
+    function table(name) {
+      const m = master.find((x) => x.type === 'table' && x.name === name);
+      if (!m) return null;
+      const cols = columns(m.sql);
+      const ipk = /INTEGER\s+NOT\s+NULL\s+PRIMARY\s+KEY|INTEGER\s+PRIMARY\s+KEY/i.test(m.sql) ? 0 : -1;
+      return walk(m.root, []).map((r) => {
+        const o = {};
+        cols.forEach((c, i) => { o[c] = i < r.vals.length ? r.vals[i] : null; });
+        if (ipk === 0 && (o[cols[0]] === null || o[cols[0]] === undefined)) o[cols[0]] = r.rowid;
+        return o;
+      });
+    }
+    return { table, tables: () => master.filter((m) => m.type === 'table').map((m) => m.name) };
+  }
+  return { open };
+})();
+if (typeof module !== 'undefined') module.exports = SqliteLite;
+
+// Analyseur XML minimal (sans dépendance) : éléments, attributs, texte.
+const MiniXML = (() => {
+  const ent = (s) => s.replace(/&(lt|gt|amp|quot|apos|#\d+|#x[0-9a-f]+);/gi, (m, e) => {
+    if (e[0] === '#') return String.fromCodePoint(e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10));
+    return { lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" }[e.toLowerCase()];
+  });
+  function parse(src) {
+    const root = { tag: '#root', attrs: {}, children: [], text: '' };
+    const stack = [root];
+    let i = 0;
+    const n = src.length;
+    while (i < n) {
+      const lt = src.indexOf('<', i);
+      if (lt < 0) { stack[stack.length - 1].text += ent(src.slice(i)); break; }
+      if (lt > i) stack[stack.length - 1].text += ent(src.slice(i, lt));
+      if (src.startsWith('<!--', lt)) { i = src.indexOf('-->', lt) + 3; continue; }
+      if (src.startsWith('<?', lt)) { i = src.indexOf('?>', lt) + 2; continue; }
+      if (src.startsWith('<![CDATA[', lt)) { const e = src.indexOf(']]>', lt); stack[stack.length - 1].text += src.slice(lt + 9, e); i = e + 3; continue; }
+      if (src.startsWith('<!', lt)) { i = src.indexOf('>', lt) + 1; continue; }
+      const gt = src.indexOf('>', lt);
+      const body = src.slice(lt + 1, gt);
+      i = gt + 1;
+      if (body[0] === '/') { stack.pop(); continue; }
+      const self = body.endsWith('/');
+      const b = self ? body.slice(0, -1) : body;
+      const m = b.match(/^([^\s]+)/);
+      const node = { tag: m[1], attrs: {}, children: [], text: '' };
+      b.slice(m[1].length).replace(/([^\s=]+)\s*=\s*("([^"]*)"|'([^']*)')/g, (x, k, q, v1, v2) => { node.attrs[k] = ent(v1 !== undefined ? v1 : v2); return ''; });
+      stack[stack.length - 1].children.push(node);
+      if (!self) stack.push(node);
+    }
+    return root;
+  }
+  const kids = (n, tag) => n.children.filter((c) => c.tag === tag);
+  const kid = (n, tag) => n.children.find((c) => c.tag === tag);
+  const path = (n, p) => { let c = n; for (const t of p.split('/')) { if (!c) return undefined; c = kid(c, t); } return c; };
+  const txt = (n, p) => { const c = path(n, p); return c ? c.text.trim() : undefined; };
+  const num = (n, p) => { const t = txt(n, p); return t === undefined || t === '' ? NaN : parseFloat(t); };
+  return { parse, kids, kid, path, txt, num };
+})();
+if (typeof module !== 'undefined') module.exports = MiniXML;
+
+// Moteur de calcul GEDO REC : conception (.sie) + carnet (JobXML) -> écarts, rail directeur, conformité.
+// Aucune dépendance. Toutes les longueurs en mètres sauf indication (mm).
+const GedoEngine = (() => {
+  const G = Math.PI / 200; // gon -> rad
+  const DEFAULTS = {
+    targetHeight: null,       // null = valeur du carnet (TargetRecord)
+    fixSideV: null,           // null = valeur du carnet (TrolleyRecord/FixSide/VerticalOffset)
+    fixSideH: null,
+    minSight: 4.0,            // m : visées plus courtes = faible fiabilité
+    rejectMm: 100,            // mm : écart au-delà = point aberrant
+    gridStep: 1.0,            // m
+    twistBase: 3.0,           // m
+    rocBase: 2.0,             // m
+    leadingRail: 'auto',      // auto | L | R
+    tol: { h: 6, v: 6, roc: 1, gaugeMin: -1, gaugeMax: 3, cant: 2 },
+    coordSystem: 'NouvLR_NAD-83 Original / NouvLR_CGVD28 (HT2-2010-QC), facteur d’échelle 0,999 905 367',
+  };
+
+  // ---------------------------------------------------------------- conception
+  function readDesign(db, trackIndex = 0) {
+    const tracks = db.table('track') || [];
+    if (!tracks.length) throw new Error('Aucune voie dans le fichier .sie.');
+    const tr = tracks[Math.min(trackIndex, tracks.length - 1)];
+    const axis = db.table('axiselem').filter((r) => r.aid === tr.axisid).sort((a, b) => a.id - b.id)
+      .map((r) => ({ t: r.type, ch: r.chai, E: r.east, N: r.north, dir: r.dir, L: r.lenght, R1: r.srad, R2: r.erad }));
+    const valig = db.table('valigelem').filter((r) => r.vid === tr.gradid).sort((a, b) => a.seq - b.seq)
+      .map((r) => ({ ch: r.chai, z: r.elev, R: Math.abs(r.rad || 0) }));
+    const cant = db.table('cantelem').filter((r) => r.bid === tr.cantid && !r.del).sort((a, b) => a.seq - b.seq)
+      .map((r) => ({ ch: r.chai, lc: r.lcant || 0, rc: r.rcant || 0, lo: r.loffset, ro: r.roffset }));
+    const settings = {};
+    (db.table('settings') || []).forEach((s) => { settings[s.subj] = s.val; });
+    const refp = (db.table('refpelem') || []).map((r) => ({ name: r.name, code: r.code, E: r.east, N: r.north, Z: r.elev }));
+    const ver = (db.table('pro_ver') || [])[0];
+    return { name: tr.name, tracks: tracks.map((t) => t.name), axis, valig, cant, settings, refp, software: ver ? `${ver.sw} ${ver.vs}` : '' };
+  }
+
+  function makeAlignment(d) {
+    const els = d.axis;
+    const k = (R) => (R ? 1 / R : 0);
+    function evalEl(e, s) {
+      const a0 = e.dir * G, k1 = k(e.R1), k2 = k(e.R2);
+      if (e.t === 0 || (k1 === 0 && k2 === 0)) return { E: e.E + s * Math.sin(a0), N: e.N + s * Math.cos(a0), az: a0, k: 0 };
+      if (e.t === 1 || k1 === k2) {
+        const az = a0 + k1 * s;
+        return { E: e.E + (Math.cos(a0) - Math.cos(az)) / k1, N: e.N + (Math.sin(az) - Math.sin(a0)) / k1, az, k: k1 };
+      }
+      // clothoïde : intégration de Simpson
+      const dk = (k2 - k1) / e.L;
+      const azf = (u) => a0 + k1 * u + (dk * u * u) / 2;
+      let n = Math.max(20, Math.ceil(s / 0.25)); if (n % 2) n++;
+      const h = s / n;
+      let se = 0, sn = 0;
+      for (let i = 0; i <= n; i++) {
+        const w = i === 0 || i === n ? 1 : i % 2 ? 4 : 2;
+        const az = azf(i * h); se += w * Math.sin(az); sn += w * Math.cos(az);
+      }
+      return { E: e.E + (se * h) / 3, N: e.N + (sn * h) / 3, az: azf(s), k: k1 + dk * s };
+    }
+    const segs = els.slice(0, -1).filter((e) => e.L > 0);
+    const start = segs[0].ch, end = segs[segs.length - 1].ch + segs[segs.length - 1].L;
+    function elementAt(pk) {
+      for (const e of segs) if (pk >= e.ch - 1e-9 && pk <= e.ch + e.L + 1e-9) return e;
+      return pk < start ? segs[0] : segs[segs.length - 1];
+    }
+    function at(pk) { const e = elementAt(pk); return evalEl(e, pk - e.ch); }
+    // échantillonnage grossier pour l'initialisation des projections
+    const coarse = [];
+    for (let pk = start; pk <= end; pk += 2) { const p = at(pk); coarse.push([pk, p.E, p.N]); }
+    function project(E, N) {
+      let best = 0, bd = Infinity;
+      for (let i = 0; i < coarse.length; i++) { const d2 = (coarse[i][1] - E) ** 2 + (coarse[i][2] - N) ** 2; if (d2 < bd) { bd = d2; best = i; } }
+      let pk = coarse[best][0];
+      for (let it = 0; it < 10; it++) {
+        const p = at(pk); const a = (E - p.E) * Math.sin(p.az) + (N - p.N) * Math.cos(p.az);
+        pk = Math.min(end, Math.max(start, pk + a)); if (Math.abs(a) < 1e-7) break;
+      }
+      const p = at(pk);
+      const off = (E - p.E) * Math.cos(p.az) - (N - p.N) * Math.sin(p.az); // + = à droite
+      return { pk, off, az: p.az, k: p.k, E0: p.E, N0: p.N };
+    }
+    // profil en long (paraboles)
+    const V = d.valig;
+    const g = V.slice(0, -1).map((v, j) => (V[j + 1].z - v.z) / (V[j + 1].ch - v.ch));
+    function zProf(pk) {
+      let i = 0;
+      for (let j = 0; j < V.length - 1; j++) if (V[j].ch <= pk) i = j;
+      let z = V[i].z + g[i] * (pk - V[i].ch);
+      for (let j = 1; j < V.length - 1; j++) {
+        const R = V[j].R; if (!R) continue;
+        const T = (R * Math.abs(g[j] - g[j - 1])) / 2, x = pk - (V[j].ch - T);
+        if (x >= 0 && x <= 2 * T) z = V[j].z + g[j - 1] * (pk - V[j].ch) + ((g[j] - g[j - 1]) * x * x) / (4 * T);
+      }
+      return z;
+    }
+    const C = d.cant;
+    function cantAt(pk) {
+      for (let j = 0; j < C.length - 1; j++) {
+        const a = C[j], b = C[j + 1];
+        if (pk >= a.ch && pk <= b.ch) { const f = b.ch > a.ch ? (pk - a.ch) / (b.ch - a.ch) : 0; return { lc: a.lc + f * (b.lc - a.lc), rc: a.rc + f * (b.rc - a.rc) }; }
+      }
+      return { lc: 0, rc: 0 };
+    }
+    function closure() {
+      let worst = 0;
+      for (let j = 0; j < els.length - 1; j++) {
+        const e = els[j]; if (!(e.L > 0)) continue;
+        const p = evalEl(e, e.L), n = els[j + 1];
+        worst = Math.max(worst, Math.hypot(p.E - n.E, p.N - n.N));
+      }
+      return worst;
+    }
+    const typeName = (t) => ({ 0: 'straight', 1: 'arc', 2: 'spiral' })[t] || 'other';
+    return { at, project, zProf, cantAt, elementAt, closure, start, end, segs, typeName };
+  }
+
+  // ---------------------------------------------------------------- carnet
+  function readJob(xmlText, X) {
+    const root = X.parse(xmlText);
+    const job = X.path(root, 'JOBFile');
+    if (!job) throw new Error("Le fichier XML n'est pas un export JobXML de GEDO Rec.");
+    const fb = X.kid(job, 'Fieldbook');
+    const out = { jobName: job.attrs.jobName, product: `${job.attrs.product || ''} ${job.attrs.version || ''}`.trim(), backsights: [], points: [], checks: [], topo: [], ori: [] };
+    let target = { h: 0, pc: 0 }, ori = { fix: 'Left', prism: 'Left', href: 'Left', dir: 'Unknown' }, refr = 0.142;
+    for (const e of fb.children) {
+      const t = e.tag;
+      if (t === 'WeatherRecord') { out.weather = { p: X.num(e, 'Pressure'), t: X.num(e, 'Temperature') }; const r = X.txt(e, 'RefractionType') || ''; const m = r.match(/(\d+)_(\d+)/); if (m) refr = parseFloat(`${m[1]}.${m[2]}`); out.weather.k = refr; }
+      else if (t === 'StationRecord') out.station = { name: X.txt(e, 'Name'), E: X.num(e, 'Grid/East'), N: X.num(e, 'Grid/North'), Z: X.num(e, 'Grid/Elevation'), scale: X.num(e, 'ScaleFactor'), ori: X.num(e, 'Orientation'), ih: X.num(e, 'InstrumentHeight') || 0, type: X.txt(e, 'StationType'), time: e.attrs.TimeStamp };
+      else if (t === 'TargetRecord') target = { h: X.num(e, 'TargetHeight') || 0, pc: X.num(e, 'PrismConstant') || 0 };
+      else if (t === 'BackSightRecord') out.backsights.push({ name: X.txt(e, 'Name'), face: +X.txt(e, 'Face'), hz: X.num(e, 'Circle/HorizontalCircle'), v: X.num(e, 'Circle/VerticalCircle'), sd: X.num(e, 'Circle/EDMDistance'), E: X.num(e, 'Grid/East'), N: X.num(e, 'Grid/North'), Z: X.num(e, 'Grid/Elevation'), pc: target.pc, th: target.h, enabled: X.txt(e, 'Enabled') !== 'False' });
+      else if (t === 'TrolleyRecord') out.trolley = { name: X.txt(e, 'Name'), fixH: X.num(e, 'FixSide/HorizontalOffset'), fixV: X.num(e, 'FixSide/VerticalOffset'), incOffset: X.num(e, 'IncSensor/Offset'), gaugeOffset: X.num(e, 'GaugeSensor/Offset') };
+      else if (t === 'AlignmentRecord') out.align = { gauge: X.num(e, 'ReferenceGauge'), cantBase: X.num(e, 'CantBase') };
+      else if (t === 'CalibrationResults') {
+        const g = X.kid(e, 'TrolleyGauge'), i = X.kid(e, 'TrolleyInclination');
+        out.calib = { gauge: g ? { time: g.attrs.TimeStamp, measured: X.num(g, 'MeasuredValue'), reference: X.num(g, 'ReferenceValue'), old: X.num(g, 'OldValue'), nw: X.num(g, 'NewValue') } : null, incl: i ? { time: i.attrs.TimeStamp, f1: X.num(i, 'Face1Value'), f2: X.num(i, 'Face2Value'), old: X.num(i, 'OldValue'), nw: X.num(i, 'NewValue') } : null };
+      } else if (t === 'TrolleyOriRecord') { ori = { fix: X.txt(e, 'FixSide'), prism: X.txt(e, 'PrismSide'), href: X.txt(e, 'HeightRefSide'), dir: X.txt(e, 'Chainage') }; out.ori.push({ ...ori, time: e.attrs.TimeStamp }); }
+      else if (t === 'PointRecord') {
+        const p = { name: X.txt(e, 'Name'), line: X.txt(e, 'LineName') || '', cls: X.txt(e, 'Classification'), deleted: X.txt(e, 'Deleted') === 'True', time: e.attrs.TimeStamp, E: X.num(e, 'ComputedGrid/East'), N: X.num(e, 'ComputedGrid/North'), Z: X.num(e, 'ComputedGrid/Elevation'), hz: X.num(e, 'Circle/HorizontalCircle'), v: X.num(e, 'Circle/VerticalCircle'), sd: X.num(e, 'Circle/EDMDistance'), th: target.h, pc: target.pc, ori: { ...ori } };
+        const sv = X.kid(e, 'SensorValues'), so = X.kid(e, 'Stakeout');
+        if (sv && !p.deleted) { p.incl = X.num(sv, 'Inclination'); p.gauge = X.num(sv, 'Gauge'); p.tc = X.num(sv, 'TrueChainage'); out.points.push(p); }
+        else if (so) { p.dE = X.num(so, 'GridDeltas/DeltaEast'); p.dN = X.num(so, 'GridDeltas/DeltaNorth'); p.dZ = X.num(so, 'GridDeltas/DeltaElev'); out.checks.push(p); }
+        else out.topo.push(p);
+      }
+    }
+    out.refraction = refr;
+    if (!out.points.length) throw new Error('Aucun point de chariot (SensorValues) dans le carnet XML.');
+    // sens de marche : l'orientation du chariot, sinon la progression des PK
+    return out;
+  }
+
+  // ---------------------------------------------------------------- utilitaires
+  const fr = (v, d = 1) => v.toFixed(d).replace('.', ',').replace('-', '\u2212');
+  const mean = (a) => a.reduce((s, x) => s + x, 0) / a.length;
+  const sd = (a) => { if (a.length < 2) return NaN; const m = mean(a); return Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / (a.length - 1)); };
+  function interp(pts, key, x, maxGap = 2.5) {
+    // pts triés par pk, valeurs finies
+    const P = pts.filter((p) => Number.isFinite(p[key]));
+    if (!P.length || x < P[0].pk || x > P[P.length - 1].pk) return NaN;
+    for (let i = 0; i < P.length - 1; i++) {
+      const a = P[i], b = P[i + 1];
+      if (x >= a.pk && x <= b.pk) { if (b.pk - a.pk > maxGap) return NaN; const f = b.pk > a.pk ? (x - a.pk) / (b.pk - a.pk) : 0; return a[key] + f * (b[key] - a[key]); }
+    }
+    return P[P.length - 1].pk === x ? P[P.length - 1][key] : NaN;
+  }
+  function stats(vals) {
+    const a = vals.filter(Number.isFinite);
+    if (!a.length) return { n: 0 };
+    return { n: a.length, mean: mean(a), sd: sd(a), min: Math.min(...a), max: Math.max(...a) };
+  }
+
+  // ---------------------------------------------------------------- calcul principal
+  function compute(design, job, userParams = {}) {
+    const P = { ...DEFAULTS, ...userParams, tol: { ...DEFAULTS.tol, ...(userParams.tol || {}) } };
+    const A = makeAlignment(design);
+    const G0 = job.align && job.align.gauge ? job.align.gauge : parseFloat(design.settings.gauge || '1.435');
+    const BASE = job.align && job.align.cantBase ? job.align.cantBase : 1.502;
+    const fixV = P.fixSideV ?? (job.trolley ? job.trolley.fixV : 0);
+    const fixH = P.fixSideH ?? (job.trolley ? job.trolley.fixH : 0);
+    const warnings = [];
+
+    // sens de marche par point
+    const pts = job.points.map((p, i) => ({ ...p, idx: i }));
+    const byLine = {};
+    pts.forEach((p) => { (byLine[p.line] = byLine[p.line] || []).push(p); });
+    for (const p of pts) {
+      const pr = A.project(p.E, p.N);
+      Object.assign(p, { pk: pr.pk, off: pr.off, az: pr.az });
+    }
+    Object.values(byLine).forEach((L) => {
+      let asc;
+      const d = L[0].ori.dir;
+      if (d === 'Ascending') asc = true; else if (d === 'Descending') asc = false;
+      else asc = L.length > 1 ? L[L.length - 1].pk >= L[0].pk : true;
+      L.forEach((p) => { if (p.ori.dir === 'Ascending') p.asc = true; else if (p.ori.dir === 'Descending') p.asc = false; else p.asc = asc; });
+    });
+
+    for (const p of pts) {
+      const HP = (P.targetHeight ?? p.th) + fixV;
+      p.HP = HP;
+      const sgn = p.asc ? 1 : -1;
+      const cantM = sgn * BASE * Math.sin(p.incl * G);
+      const phi = Math.asin(cantM / BASE);
+      const trolleySide = (p.ori.prism || 'Left') === 'Left' ? -1 : 1;
+      const side = trolleySide * sgn; // -1 = rail gauche (conception)
+      const latRef = p.off - HP * -Math.sin(phi) - side * fixH * Math.cos(phi);
+      const zRef = p.Z - HP * Math.cos(phi);
+      const gC = p.gauge * Math.cos(phi);
+      const latL = side === -1 ? latRef : latRef - gC;
+      const latR = side === 1 ? latRef : latRef + gC;
+      const latAxis = (latL + latR) / 2;
+      const zL = side === -1 ? zRef : zRef - cantM;
+      const zR = side === 1 ? zRef : zRef + cantM;
+      const c = A.cantAt(p.pk), zp = A.zProf(p.pk);
+      Object.assign(p, {
+        side, cant: cantM * 1000, cantTh: (c.rc - c.lc) * 1000, zp,
+        dLat: latAxis * 1000, dLatL: (latL + G0 / 2) * 1000, dLatR: (latR - G0 / 2) * 1000,
+        dFace: (latRef - side * G0 / 2) * 1000,
+        dZL: (zL - (zp + c.lc)) * 1000, dZR: (zR - (zp + c.rc)) * 1000,
+        dGauge: (p.gauge - G0) * 1000,
+      });
+      p.dCant = p.cant - p.cantTh;
+      p.status = 'OK';
+      if (!(Math.abs(p.dFace) < P.rejectMm && Math.abs(p.dZL) < P.rejectMm)) p.status = 'Rejeté';
+      else if (p.sd < P.minSight) p.status = 'Visée courte';
+    }
+    const good = pts.filter((p) => p.status === 'OK');
+    const fwd = good.filter((p) => p.asc).sort((a, b) => a.pk - b.pk);
+    const bwd = good.filter((p) => !p.asc).sort((a, b) => a.pk - b.pk);
+
+    // comparaison aller/retour
+    const keys = ['dLat', 'dLatL', 'dLatR', 'dZL', 'dZR', 'dGauge', 'dCant'];
+    const passDiff = {};
+    let overlap = null;
+    if (fwd.length && bwd.length) {
+      const lo = Math.max(fwd[0].pk, bwd[0].pk), hi = Math.min(fwd[fwd.length - 1].pk, bwd[bwd.length - 1].pk);
+      if (hi > lo) {
+        const Bi = bwd.filter((p) => p.pk >= lo && p.pk <= hi);
+        overlap = { lo, hi, n: Bi.length };
+        for (const k of keys) {
+          const d = Bi.map((p) => p[k] - interp(fwd, k, p.pk)).filter(Number.isFinite);
+          passDiff[k] = { mean: d.length ? mean(d) : NaN, sd: sd(d), maxAbs: d.length ? Math.max(...d.map(Math.abs)) : NaN };
+        }
+      }
+    }
+    const lateralKeys = ['dLat', 'dLatL', 'dLatR'];
+    const bias = {};
+    lateralKeys.forEach((k) => { bias[k] = passDiff[k] && Number.isFinite(passDiff[k].mean) ? passDiff[k].mean : 0; });
+
+    // grille combinée
+    const all = good.map((p) => p.pk);
+    const g0 = Math.ceil(Math.min(...all) / P.gridStep) * P.gridStep, g1 = Math.floor(Math.max(...all) / P.gridStep) * P.gridStep;
+    const grid = [];
+    for (let x = g0; x <= g1 + 1e-9; x += P.gridStep) {
+      const r = { pk: Math.round(x * 1000) / 1000 };
+      const allKeys = [...keys, 'cant', 'cantTh'];
+      let n = 0;
+      for (const k of allKeys) {
+        const a = interp(fwd, k, x), b = interp(bwd, k, x);
+        const bb = lateralKeys.includes(k) ? bias[k] / 2 : 0;
+        const v = [a + bb, b - bb].filter(Number.isFinite);
+        r[k] = v.length ? mean(v) : NaN;
+        if (k === 'dLat') n = v.length;
+      }
+      r.n = n;
+      const c = A.cantAt(x); r.lc = c.lc; r.rc = c.rc; r.zp = A.zProf(x);
+      const e = A.elementAt(x); r.type = A.typeName(e.t); r.R = e.t === 1 ? e.R1 : e.t === 2 ? null : 0;
+      r.lead = P.leadingRail === 'L' || P.leadingRail === 'R' ? P.leadingRail : c.lc > c.rc + 1e-6 ? 'R' : 'L';
+      r.hDev = r.lead === 'L' ? r.dLatL : r.dLatR;
+      r.vDev = r.lead === 'L' ? r.dZL : r.dZR;
+      r.gauge = G0 * 1000 + r.dGauge;
+      grid.push(r);
+    }
+    const step = P.gridStep;
+    const rb = Math.max(1, Math.round(P.rocBase / step)), tb = Math.max(1, Math.round(P.twistBase / step));
+    grid.forEach((r, i) => {
+      const p = grid[i - rb], q = grid[i - tb];
+      r.hRoc = p ? Math.abs(r.hDev - p.hDev) * (P.rocBase / (r.pk - p.pk)) : NaN;
+      r.vRoc = p ? Math.abs(r.vDev - p.vDev) * (P.rocBase / (r.pk - p.pk)) : NaN;
+      r.twist = q ? r.cant - q.cant : NaN;
+      r.twistTh = q ? r.cantTh - q.cantTh : NaN;
+      r.dTwist = r.twist - r.twistTh;
+    });
+
+    // conformité (seuils d'arrondi du rapport de référence)
+    const T = P.tol;
+    const r1 = (v) => Math.round(v * 10) / 10;
+    const checks = [
+      { key: 'hDev', label: 'Écart horizontal (rail directeur)', short: 'plan', tol: `±${T.h} mm`, out: (v) => Math.abs(r1(v)) > T.h + 0.4 },
+      { key: 'hRoc', label: 'Taux de variation horizontal', short: 'taux de variation en plan', tol: `${T.roc} mm par ${P.rocBase} m`, out: (v) => Math.round(v) > T.roc },
+      { key: 'vDev', label: 'Écart vertical (rail directeur)', short: 'nivellement', tol: `±${T.v} mm`, out: (v) => Math.abs(r1(v)) > T.v + 0.4 },
+      { key: 'vRoc', label: 'Taux de variation vertical', short: 'taux de variation en nivellement', tol: `${T.roc} mm par ${P.rocBase} m`, out: (v) => Math.round(v) > T.roc },
+      { key: 'gauge', label: 'Écartement', short: 'écartement', tol: `${T.gaugeMin > 0 ? '+' : ''}${T.gaugeMin}/+${T.gaugeMax} mm`, out: (v) => r1(v) < G0 * 1000 + T.gaugeMin - 0.5 || r1(v) > G0 * 1000 + T.gaugeMax + 0.4 },
+      { key: 'dCant', label: 'Dévers', short: 'dévers', tol: `±${T.cant} mm`, out: (v) => Math.abs(r1(v)) > T.cant + 0.4 },
+    ];
+    const conformity = checks.map((c) => {
+      const rows = grid.filter((r) => Number.isFinite(r[c.key]));
+      const bad = rows.filter((r) => c.out(r[c.key]));
+      const s = stats(rows.map((r) => r[c.key]));
+      return { ...c, n: rows.length, nOut: bad.length, pks: bad.map((r) => r.pk), stats: s, ok: bad.length === 0 };
+    });
+    grid.forEach((r) => { r.flags = {}; checks.forEach((c) => { r.flags[c.key] = Number.isFinite(r[c.key]) && c.out(r[c.key]); }); });
+
+    // statistiques
+    const statKeys = { dLat: 'Plan (axe)', hDev: 'Plan (rail directeur)', dZL: 'Nivellement rail gauche', dZR: 'Nivellement rail droit', dGauge: 'Écartement', dCant: 'Dévers', dTwist: `Gauche ${P.twistBase} m (écart à la conception)` };
+    const statTable = Object.entries(statKeys).map(([k, label]) => {
+      const rows = grid.filter((r) => Number.isFinite(r[k]));
+      const s = stats(rows.map((r) => r[k]));
+      let worst = null; rows.forEach((r) => { if (!worst || Math.abs(r[k]) > Math.abs(worst[k])) worst = r; });
+      return { key: k, label, ...s, worstPk: worst ? worst.pk : null, worst: worst ? worst[k] : null };
+    });
+    // zones (éléments de tracé)
+    const zones = [];
+    grid.forEach((r) => {
+      const e = A.elementAt(r.pk);
+      const z = zones[zones.length - 1];
+      if (!z || z.el !== e) zones.push({ el: e, type: r.type, rows: [r] }); else z.rows.push(r);
+    });
+    const zoneTable = zones.map((z) => ({ type: z.type, R: z.el.t === 1 ? z.el.R1 : null, L: z.el.L, from: z.rows[0].pk, to: z.rows[z.rows.length - 1].pk,
+      s: Object.fromEntries(['hDev', 'dLat', 'dZL', 'dZR', 'dGauge', 'dCant'].map((k) => [k, stats(z.rows.map((r) => r[k]))])) }));
+
+    // mise en station
+    const st = job.station;
+    const k = job.refraction ?? 0.142;
+    const bs = job.backsights.map((b) => {
+      let hz = b.hz, v = b.v;
+      if (v > 200) { hz -= 200; v = 400 - v; }
+      const s = b.sd + b.pc, hd = s * Math.sin(v * G);
+      const dz = s * Math.cos(v * G) + ((1 - k) * hd * hd) / (2 * 6378000) + (st.ih || 0) - (b.th || 0);
+      const az = (hz + st.ori) * G;
+      const E = st.E + hd * st.scale * Math.sin(az), N = st.N + hd * st.scale * Math.cos(az), Z = st.Z + dz;
+      const dE = E - b.E, dN = N - b.N;
+      return { ...b, hd: hd * st.scale, dE: dE * 1000, dN: dN * 1000, dZ: (Z - b.Z) * 1000, dLon: (dE * Math.sin(az) + dN * Math.cos(az)) * 1000, dLatr: (dE * Math.cos(az) - dN * Math.sin(az)) * 1000 };
+    });
+    const bsByPt = {};
+    bs.forEach((b) => { (bsByPt[b.name] = bsByPt[b.name] || []).push(b); });
+    const stationRes = Object.entries(bsByPt).map(([name, L]) => ({ name, hd: mean(L.map((b) => b.hd)), n: L.length, dE: mean(L.map((b) => b.dE)), dN: mean(L.map((b) => b.dN)), dZ: mean(L.map((b) => b.dZ)), dZf1: mean(L.filter((b) => b.face === 1).map((b) => b.dZ)), dZf2: mean(L.filter((b) => b.face === 2).map((b) => b.dZ)) }));
+    const checkPts = job.checks.map((c) => {
+      const same = job.backsights.some((b) => Math.abs(b.hz - c.hz) < 1e-4 && Math.abs(b.v - c.v) < 1e-4 && Math.abs(b.sd - c.sd) < 1e-4);
+      return { ...c, reused: same };
+    });
+    if (checkPts.length && checkPts.every((c) => c.reused)) warnings.push("Les points de vérification du carnet reprennent les observations de la mise en station : ce ne sont pas des contrôles indépendants.");
+
+    // divers
+    const odo = pts.filter((p) => Number.isFinite(p.tc)).map((p) => p.tc + Math.round((p.pk - p.tc) / 1e6) * 1e6 - p.pk);
+    const times = pts.map((p) => p.time).sort();
+    const closure = A.closure();
+    if (closure > 0.001) warnings.push(`Fermeture de l’axe de conception : ${fr(closure * 1000)} mm entre deux éléments.`);
+    if (!bwd.length || !fwd.length) warnings.push('Un seul sens de mesure : le décalage latéral du prisme ne peut pas être contrôlé ni corrigé.');
+    if (Math.abs(bias.dLat) > 2) warnings.push(`Décalage latéral de ${fr(bias.dLat)} mm entre l’aller et le retour : vérifier l’étalonnage latéral du chariot.`);
+    const gs = stats(good.map((p) => p.dGauge));
+    if (gs.n > 10 && Math.abs(gs.mean) > 2 && gs.sd < 1) warnings.push(`Écartement décalé uniformément de ${fr(gs.mean)} mm (écart-type ${fr(gs.sd)} mm) : confirmer à la jauge (étalonnage possible du capteur).`);
+
+    return {
+      params: P, G0, BASE, fixV, fixH, HP: good.length ? good[0].HP : (P.targetHeight ?? 0) + fixV,
+      design: { name: design.name, software: design.software, start: A.start, end: A.end, closure },
+      alignment: A, points: pts, good, fwd, bwd, overlap, passDiff, bias, grid, conformity, statTable, zoneTable,
+      stationRes, checkPts, warnings, odo: odo.length ? { mean: mean(odo), min: Math.min(...odo), max: Math.max(...odo) } : null,
+      timeFrom: times[0], timeTo: times[times.length - 1],
+      counts: { total: pts.length, fwd: pts.filter((p) => p.asc).length, bwd: pts.filter((p) => !p.asc).length, ok: good.length, rejected: pts.filter((p) => p.status === 'Rejeté').length, short: pts.filter((p) => p.status === 'Visée courte').length },
+    };
+  }
+  return { DEFAULTS, readDesign, makeAlignment, readJob, compute, stats };
+})();
+if (typeof module !== 'undefined') module.exports = GedoEngine;
+
+// Générateur PDF minimal (texte Helvetica, traits, rectangles, polylignes). Aucune dépendance.
+const MiniPDF = (() => {
+  const FW = typeof FONT_W !== 'undefined' ? FONT_W : require('./fontmetrics.js');
+  const MAP = { '−': '-', '–': '–', '—': '—', 'σ': 's', '→': '->', '←': '<-', '≤': '<=', '≥': '>=', ' ': ' ', ' ': ' ', '≈': '~', 'Δ': 'D' };
+  const CP = { 0x20ac: 0x80, 0x201a: 0x82, 0x192: 0x83, 0x201e: 0x84, 0x2026: 0x85, 0x2020: 0x86, 0x2021: 0x87, 0x2c6: 0x88, 0x2030: 0x89, 0x160: 0x8a, 0x2039: 0x8b, 0x152: 0x8c, 0x17d: 0x8e, 0x2018: 0x91, 0x2019: 0x92, 0x201c: 0x93, 0x201d: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97, 0x2dc: 0x98, 0x2122: 0x99, 0x161: 0x9a, 0x203a: 0x9b, 0x153: 0x9c, 0x17e: 0x9e, 0x178: 0x9f };
+  function toBytes(s) {
+    const out = [];
+    for (const ch0 of String(s)) {
+      const ch = MAP[ch0] !== undefined ? MAP[ch0] : ch0;
+      for (const ch1 of ch) {
+        const c = ch1.codePointAt(0);
+        if (c < 128 || (c >= 0xa0 && c <= 0xff)) out.push(c);
+        else if (CP[c]) out.push(CP[c]);
+        else out.push(63);
+      }
+    }
+    return out;
+  }
+  function esc(bytes) {
+    let s = '';
+    for (const b of bytes) {
+      if (b === 40 || b === 41 || b === 92) s += '\\' + String.fromCharCode(b);
+      else if (b < 32 || b > 126) s += '\\' + b.toString(8).padStart(3, '0');
+      else s += String.fromCharCode(b);
+    }
+    return s;
+  }
+  const hex = (c) => { const m = c.replace('#', ''); return [0, 2, 4].map((i) => (parseInt(m.slice(i, i + 2), 16) / 255).toFixed(3)).join(' '); };
+  class Doc {
+    constructor(w = 612, h = 792) { this.W = w; this.H = h; this.pages = []; this.info = {}; }
+    addPage() { this.cur = []; this.pages.push(this.cur); return this; }
+    width(str, size = 10, bold = false) {
+      const t = FW[bold ? 'Helvetica-Bold' : 'Helvetica'];
+      return toBytes(str).reduce((s, b) => s + (b >= 32 ? t[b - 32] : 500), 0) * size / 1000;
+    }
+    text(x, y, str, o = {}) {
+      const size = o.size || 10, f = o.bold ? 'F2' : 'F1';
+      let xx = x; const w = this.width(str, size, o.bold);
+      if (o.align === 'right') xx = x - w; else if (o.align === 'center') xx = x - w / 2;
+      this.cur.push(`BT ${hex(o.color || '#1a1a1a')} rg /${f} ${size} Tf ${xx.toFixed(2)} ${(this.H - y).toFixed(2)} Td (${esc(toBytes(str))}) Tj ET`);
+      return w;
+    }
+    line(x1, y1, x2, y2, o = {}) {
+      this.cur.push(`q ${hex(o.color || '#000000')} RG ${o.width || 0.5} w ${o.dash ? `[${o.dash.join(' ')}] 0 d` : ''} ${x1.toFixed(2)} ${(this.H - y1).toFixed(2)} m ${x2.toFixed(2)} ${(this.H - y2).toFixed(2)} l S Q`);
+    }
+    rect(x, y, w, h, o = {}) {
+      const op = o.fill && o.stroke ? 'B' : o.fill ? 'f' : 'S';
+      this.cur.push(`q ${o.fill ? hex(o.fill) + ' rg' : ''} ${o.stroke ? hex(o.stroke) + ' RG' : ''} ${o.width || 0.5} w ${x.toFixed(2)} ${(this.H - y - h).toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re ${op} Q`);
+    }
+    polyline(pts, o = {}) {
+      if (pts.length < 2) return;
+      const s = pts.map((p, i) => `${p[0].toFixed(2)} ${(this.H - p[1]).toFixed(2)} ${i ? 'l' : 'm'}`).join(' ');
+      this.cur.push(`q ${hex(o.color || '#000000')} RG ${o.width || 1} w 1 j ${o.dash ? `[${o.dash.join(' ')}] 0 d` : ''} ${s} S Q`);
+    }
+    circle(x, y, r, o = {}) {
+      const k = 0.5523 * r, Y = this.H - y;
+      this.cur.push(`q ${hex(o.fill || '#000000')} rg ${(x + r).toFixed(2)} ${Y.toFixed(2)} m ${(x + r).toFixed(2)} ${(Y + k).toFixed(2)} ${(x + k).toFixed(2)} ${(Y + r).toFixed(2)} ${x.toFixed(2)} ${(Y + r).toFixed(2)} c ${(x - k).toFixed(2)} ${(Y + r).toFixed(2)} ${(x - r).toFixed(2)} ${(Y + k).toFixed(2)} ${(x - r).toFixed(2)} ${Y.toFixed(2)} c ${(x - r).toFixed(2)} ${(Y - k).toFixed(2)} ${(x - k).toFixed(2)} ${(Y - r).toFixed(2)} ${x.toFixed(2)} ${(Y - r).toFixed(2)} c ${(x + k).toFixed(2)} ${(Y - r).toFixed(2)} ${(x + r).toFixed(2)} ${(Y - k).toFixed(2)} ${(x + r).toFixed(2)} ${Y.toFixed(2)} c f Q`);
+    }
+    output() {
+      const objs = [];
+      const add = (s) => { objs.push(s); return objs.length; };
+      const catalog = add(null), pagesId = add(null);
+      const f1 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+      const f2 = add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+      const kids = [];
+      for (const p of this.pages) {
+        const content = p.join('\n');
+        const bytes = toBytes(content).length === content.length ? content : content;
+        const cId = add(`<< /Length ${bytes.length} >>\nstream\n${bytes}\nendstream`);
+        kids.push(add(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${this.W} ${this.H}] /Resources << /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >> >> /Contents ${cId} 0 R >>`));
+      }
+      objs[catalog - 1] = `<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
+      objs[pagesId - 1] = `<< /Type /Pages /Kids [${kids.map((k) => k + ' 0 R').join(' ')}] /Count ${kids.length} >>`;
+      const infoId = add(`<< /Title (${esc(toBytes(this.info.title || ''))}) /Producer (GEDO REC Rapport) /Creator (GEDO REC Rapport) >>`);
+      let out = '%PDF-1.4\n%\xe2\xe3\xcf\xd3\n';
+      const offs = [];
+      objs.forEach((o, i) => { offs.push(out.length); out += `${i + 1} 0 obj\n${o}\nendobj\n`; });
+      const xref = out.length;
+      out += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n` + offs.map((o) => String(o).padStart(10, '0') + ' 00000 n \n').join('');
+      out += `trailer\n<< /Size ${objs.length + 1} /Root ${catalog} 0 R /Info ${infoId} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+      const u8 = new Uint8Array(out.length);
+      for (let i = 0; i < out.length; i++) u8[i] = out.charCodeAt(i) & 0xff;
+      return u8;
+    }
+  }
+  return { Doc, toBytes };
+})();
+if (typeof module !== 'undefined') module.exports = MiniPDF;
+
+// Écriture XLSX minimale (zip non compressé + SpreadsheetML). Aucune dépendance.
+const MiniXLSX = (() => {
+  const enc = new TextEncoder();
+  const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  const crc32 = (u8) => { let c = 0xffffffff; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  function zip(files) {
+    const parts = [], central = [];
+    let off = 0;
+    for (const f of files) {
+      const name = enc.encode(f.name), data = typeof f.data === 'string' ? enc.encode(f.data) : f.data, crc = crc32(data);
+      const h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+      h.setUint16(10, 0, true); h.setUint16(12, 0x21, true); h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true);
+      h.setUint16(26, name.length, true); h.setUint16(28, 0, true);
+      parts.push(new Uint8Array(h.buffer), name, data);
+      const c = new DataView(new ArrayBuffer(46));
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+      c.setUint16(12, 0, true); c.setUint16(14, 0x21, true); c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true);
+      c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+      central.push(new Uint8Array(c.buffer), name);
+      off += 30 + name.length + data.length;
+    }
+    const cenSize = central.reduce((s, x) => s + x.length, 0);
+    const e = new DataView(new ArrayBuffer(22));
+    e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cenSize, true); e.setUint32(16, off, true);
+    const all = [...parts, ...central, new Uint8Array(e.buffer)];
+    const out = new Uint8Array(all.reduce((s, x) => s + x.length, 0));
+    let p = 0; for (const a of all) { out.set(a, p); p += a.length; }
+    return out;
+  }
+  const x = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const col = (n) => { let s = ''; n++; while (n) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+  // Styles : index -> {fmt, bold, fill, wrap, font color}
+  const FMTS = { '0': 1, '0.0': 164, '0.000': 165, '0.0000': 166, '0\\+000.000': 167, '0%': 9, '0.0%': 168 };
+  class Book {
+    constructor() { this.sheets = []; this.styles = [{}]; this.key = { '{}': 0 }; }
+    style(s = {}) { const k = JSON.stringify(s); if (this.key[k] === undefined) { this.key[k] = this.styles.length; this.styles.push(s); } return this.key[k]; }
+    sheet(name) { const sh = { name: name.slice(0, 31), rows: [], widths: {}, merges: [], freeze: null }; this.sheets.push(sh); return sh; }
+    static set(sh, r, c, v, st = 0) { (sh.rows[r] = sh.rows[r] || [])[c] = { v, s: st }; }
+    stylesXml() {
+      const fills = ['none', 'gray125'], fillIdx = {}, fonts = [{}], fontIdx = { '{}': 0 };
+      const xfs = this.styles.map((s) => {
+        let fi = 0; if (s.fill) { if (fillIdx[s.fill] === undefined) { fillIdx[s.fill] = fills.length; fills.push(s.fill); } fi = fillIdx[s.fill]; }
+        const fk = JSON.stringify({ b: !!s.bold, c: s.color || null, sz: s.size || null });
+        if (fontIdx[fk] === undefined) { fontIdx[fk] = fonts.length; fonts.push({ b: !!s.bold, c: s.color, sz: s.size }); }
+        return { numFmt: s.fmt ? FMTS[s.fmt] : 0, font: fontIdx[fk], fill: fi, wrap: s.wrap, center: s.center, border: s.border ? 1 : 0 };
+      });
+      const custom = Object.entries(FMTS).filter(([, id]) => id >= 164);
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+        `<numFmts count="${custom.length}">${custom.map(([f, id]) => `<numFmt numFmtId="${id}" formatCode="${x(f)}"/>`).join('')}</numFmts>` +
+        `<fonts count="${fonts.length}">${fonts.map((f) => `<font>${f.b ? '<b/>' : ''}<sz val="${f.sz || 10}"/>${f.c ? `<color rgb="FF${f.c}"/>` : ''}<name val="Arial"/></font>`).join('')}</fonts>` +
+        `<fills count="${fills.length}">${fills.map((f) => (f === 'none' || f === 'gray125' ? `<fill><patternFill patternType="${f}"/></fill>` : `<fill><patternFill patternType="solid"><fgColor rgb="FF${f}"/><bgColor indexed="64"/></patternFill></fill>`)).join('')}</fills>` +
+        `<borders count="2"><border/><border><left style="thin"><color rgb="FFBFBFBF"/></left><right style="thin"><color rgb="FFBFBFBF"/></right><top style="thin"><color rgb="FFBFBFBF"/></top><bottom style="thin"><color rgb="FFBFBFBF"/></bottom></border></borders>` +
+        `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
+        `<cellXfs count="${xfs.length}">${xfs.map((s) => `<xf numFmtId="${s.numFmt}" fontId="${s.font}" fillId="${s.fill}" borderId="${s.border}" xfId="0"${s.numFmt ? ' applyNumberFormat="1"' : ''}${s.fill ? ' applyFill="1"' : ''}${s.wrap || s.center ? ` applyAlignment="1"><alignment${s.wrap ? ' wrapText="1"' : ''}${s.center ? ' horizontal="center" vertical="center"' : ''}/></xf>` : '/>'}`).join('')}</cellXfs>` +
+        `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+    }
+    sheetXml(sh) {
+      const cols = Object.keys(sh.widths).length ? `<cols>${Object.entries(sh.widths).sort((a, b) => a[0] - b[0]).map(([c, w]) => `<col min="${+c + 1}" max="${+c + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>` : '';
+      const pane = sh.freeze ? `<sheetViews><sheetView workbookViewId="0"><pane ySplit="${sh.freeze}" topLeftCell="A${sh.freeze + 1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` : '';
+      const rows = sh.rows.map((row, r) => row ? `<row r="${r + 1}">${row.map((c, ci) => {
+        if (!c) return '';
+        const ref = col(ci) + (r + 1);
+        if (c.v === null || c.v === undefined || (typeof c.v === 'number' && !Number.isFinite(c.v))) return c.s ? `<c r="${ref}" s="${c.s}"/>` : '';
+        if (typeof c.v === 'number') return `<c r="${ref}" s="${c.s}"><v>${c.v}</v></c>`;
+        return `<c r="${ref}" s="${c.s}" t="inlineStr"><is><t xml:space="preserve">${x(c.v)}</t></is></c>`;
+      }).join('')}</row>` : '').join('');
+      const merges = sh.merges.length ? `<mergeCells count="${sh.merges.length}">${sh.merges.map((m) => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : '';
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">${pane}${cols}<sheetData>${rows}</sheetData>${merges}</worksheet>`;
+    }
+    output() {
+      const S = this.sheets;
+      const files = [
+        { name: '[Content_Types].xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${S.map((s, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>` },
+        { name: '_rels/.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+        { name: 'xl/workbook.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${S.map((s, i) => `<sheet name="${x(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>` },
+        { name: 'xl/_rels/workbook.xml.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${S.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${S.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
+        { name: 'xl/styles.xml', data: this.stylesXml() },
+        ...S.map((s, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, data: this.sheetXml(s) })),
+      ];
+      return zip(files);
+    }
+  }
+  return { Book, col };
+})();
+if (typeof module !== 'undefined') module.exports = MiniXLSX;
+
+// Production du rapport PDF et du classeur Excel à partir des résultats du moteur.
+const GedoReport = (() => {
+  const PDF = typeof MiniPDF !== 'undefined' ? MiniPDF : require('./pdf.js');
+  const XL = typeof MiniXLSX !== 'undefined' ? MiniXLSX : require('./xlsx.js');
+
+  const f = (v, d = 1, sign = false) => (Number.isFinite(v) ? ((sign && v > 0 ? '+' : '') + v.toFixed(d)).replace('.', ',').replace('-', '−') : '–');
+  const pkf = (pk, d = 1) => { if (!Number.isFinite(pk)) return '–'; const km = Math.floor(pk / 1000); return `${km}+${(pk - km * 1000).toFixed(d).padStart(d ? 4 + d : 3, '0').replace('.', ',')}`; };
+  function ranges(pks, step = 1) {
+    const out = []; let a = null, b = null;
+    pks.forEach((p) => { if (a === null) { a = b = p; } else if (p - b <= step + 1e-6) b = p; else { out.push([a, b]); a = b = p; } });
+    if (a !== null) out.push([a, b]);
+    return out.map(([s, e]) => (s === e ? pkf(s, 0) : `${pkf(s, 0)} à +${String(Math.round(e % 1000)).padStart(3, '0')}`)).join(', ');
+  }
+  const tname = { straight: 'Alignement', arc: 'Courbe', spiral: 'Clothoïde' };
+  const date = (t) => (t ? t.slice(0, 10) : '');
+  const time = (t) => (t ? t.slice(11, 16).replace(':', ' h ') : '');
+
+  function summary(r) {
+    const c = Object.fromEntries(r.conformity.map((x) => [x.key, x]));
+    const ok = r.conformity.filter((x) => x.ok).map((x) => x.label);
+    const nok = r.conformity.filter((x) => !x.ok);
+    const g = r.grid;
+    const s = `Entre les PK ${pkf(g[0].pk, 0)} et ${pkf(g[g.length - 1].pk, 0)}, ` + (nok.length ? `${nok.length} paramètre${nok.length > 1 ? 's' : ''} sur ${r.conformity.length} dépasse${nok.length > 1 ? 'nt' : ''} les tolérances : ${nok.map((x) => `${(x.short || x.label).toLowerCase()} (${x.nOut} station${x.nOut > 1 ? 's' : ''} sur ${x.n})`).join(', ')}.` : 'tous les paramètres respectent les tolérances.');
+    return { text: s, ok, nok, c };
+  }
+
+  // ------------------------------------------------------------------ PDF
+  function pdf(r, meta = {}) {
+    const doc = new PDF.Doc(612, 792); doc.info.title = meta.title || 'Rapport de levé de voie';
+    const M = 48, W = 612 - 2 * M, BOT = 740;
+    let y = 0, page = 0;
+    const ACC = '#1f4e79', MUTED = '#666666', RED = '#b3261e', GREEN = '#1e6b35', LINE = '#c8c8c8';
+    const newPage = () => {
+      doc.addPage(); page++; y = 56;
+      doc.text(M, 32, meta.title || 'Rapport de levé de voie', { size: 8, color: MUTED });
+      doc.text(612 - M, 32, `${r.design.name}`, { size: 8, color: MUTED, align: 'right' });
+      doc.line(M, 38, 612 - M, 38, { color: LINE });
+      doc.text(306, 770, `Page ${page}`, { size: 8, color: MUTED, align: 'center' });
+    };
+    const need = (h) => { if (y + h > BOT) newPage(); };
+    const wrap = (str, size, width, bold) => {
+      const words = String(str).split(/\s+/); const lines = []; let cur = '';
+      for (const w of words) { const t = cur ? cur + ' ' + w : w; if (doc.width(t, size, bold) > width && cur) { lines.push(cur); cur = w; } else cur = t; }
+      if (cur) lines.push(cur); return lines;
+    };
+    const para = (str, o = {}) => {
+      const size = o.size || 9.5, lh = size * 1.35, x = M + (o.indent || 0), w = W - (o.indent || 0);
+      const lines = wrap(str, size, w - (o.bullet ? 10 : 0), o.bold);
+      lines.forEach((l, i) => { need(lh); if (o.bullet && i === 0) doc.text(x, y + size, '•', { size, color: o.color }); doc.text(x + (o.bullet ? 10 : 0), y + size, l, { size, bold: o.bold, color: o.color }); y += lh; });
+      y += o.after ?? 5;
+    };
+    const h2 = (t) => { need(40); y += 8; doc.text(M, y + 13, t, { size: 13, bold: true, color: ACC }); y += 20; doc.line(M, y, M + W, y, { color: ACC, width: 0.8 }); y += 8; };
+    const table = (cols, rows, o = {}) => {
+      const size = o.size || 8.2, pad = 3, widths = cols.map((c) => c.w * W);
+      const cellLines = (row, isHead) => row.map((v, i) => wrap(v === null || v === undefined ? '' : String(v), size, widths[i] - 2 * pad, isHead));
+      const drawRow = (row, isHead, colors) => {
+        const L = cellLines(row, isHead); const h = Math.max(...L.map((l) => l.length)) * size * 1.25 + 2 * pad;
+        if (y + h > BOT) { newPage(); if (!isHead) drawRow(cols.map((c) => c.t), true); }
+        let x = M;
+        if (isHead) doc.rect(M, y, W, h, { fill: '#e8eef5' });
+        else if (o.zebra !== false && o._z++ % 2) doc.rect(M, y, W, h, { fill: '#f7f7f7' });
+        L.forEach((lines, i) => {
+          const col = colors && colors[i]; const al = cols[i].a || 'left';
+          lines.forEach((ln, k) => {
+            const tx = al === 'right' ? x + widths[i] - pad : al === 'center' ? x + widths[i] / 2 : x + pad;
+            doc.text(tx, y + pad + size * (k + 1) * 1.25 - 2, ln, { size, bold: isHead || (col && col.bold), color: col ? col.c || col : '#1a1a1a', align: al });
+          });
+          x += widths[i];
+        });
+        y += h; doc.line(M, y, M + W, y, { color: LINE, width: 0.4 });
+      };
+      o._z = 0; need(40); drawRow(cols.map((c) => c.t), true);
+      rows.forEach((row) => drawRow(row.cells || row, false, row.colors));
+      y += 8;
+    };
+    const chart = (title, series, o = {}) => {
+      const H = 170; need(H + 50);
+      doc.text(M, y + 11, title, { size: 10.5, bold: true }); y += 16;
+      if (o.sub) { doc.text(M, y + 8, o.sub, { size: 7.8, color: MUTED }); y += 12; }
+      const x0 = M + 36, x1 = M + W - 6, y0 = y + 6, y1 = y + H - 22;
+      const xs = r.grid.map((g) => g.pk); const xmin = xs[0], xmax = xs[xs.length - 1];
+      let vals = series.flatMap((s) => s.pts.map((p) => p[1]).filter(Number.isFinite)); if (o.refs) vals = vals.concat(o.refs.map((q) => q.v));
+      let lo = Math.min(...vals), hi = Math.max(...vals); if (hi - lo < 2) { lo -= 1; hi += 1; }
+      const stepT = [0.5, 1, 2, 5, 10, 20, 50].find((s) => (hi - lo) / s <= 6) || 100;
+      lo = Math.floor(lo / stepT) * stepT; hi = Math.ceil(hi / stepT) * stepT;
+      const X = (v) => x0 + ((v - xmin) / (xmax - xmin || 1)) * (x1 - x0), Y = (v) => y1 - ((v - lo) / (hi - lo)) * (y1 - y0);
+      for (let t = lo; t <= hi + 1e-9; t += stepT) { doc.line(x0, Y(t), x1, Y(t), { color: Math.abs(t) < 1e-9 ? '#888888' : '#e3e3e3', width: 0.5 }); doc.text(x0 - 4, Y(t) + 2.5, f(t, stepT < 1 ? 1 : 0), { size: 7, color: MUTED, align: 'right' }); }
+      const xstep = [5, 10, 20, 25, 50, 100, 200, 500].find((s) => (xmax - xmin) / s <= 10) || 1000;
+      for (let t = Math.ceil(xmin / xstep) * xstep; t <= xmax; t += xstep) doc.text(X(t), y1 + 10, pkf(t, 0), { size: 7, color: MUTED, align: 'center' });
+      (o.refs || []).forEach((q) => { doc.line(x0, Y(q.v), x1, Y(q.v), { color: RED, width: 0.7, dash: [3, 2] }); if (q.label) doc.text(x1 - 2, Y(q.v) - 2.5, q.label, { size: 6.8, color: RED, align: 'right' }); });
+      series.forEach((s) => {
+        let seg = [];
+        const flush = () => { doc.polyline(seg, { color: s.color, width: 1.2 }); seg = []; };
+        s.pts.forEach(([px, py]) => { if (Number.isFinite(py)) seg.push([X(px), Y(py)]); else if (seg.length) flush(); });
+        if (seg.length) flush();
+      });
+      let lx = x0; series.forEach((s) => { doc.line(lx, y1 + 20, lx + 12, y1 + 20, { color: s.color, width: 2 }); doc.text(lx + 15, y1 + 22.5, s.name, { size: 7.5 }); lx += 20 + doc.width(s.name, 7.5) + 14; });
+      doc.text(x1, y1 + 22.5, o.unit || 'mm', { size: 7, color: MUTED, align: 'right' });
+      y += H + 8;
+    };
+
+    const S = summary(r), g = r.grid, P = r.params;
+    newPage();
+    doc.text(M, y + 20, 'Rapport de levé de voie', { size: 20, bold: true, color: ACC }); y += 30;
+    doc.text(M, y + 12, `${r.design.name} — PK ${pkf(g[0].pk, 0)} à ${pkf(g[g.length - 1].pk, 0)}`, { size: 12 }); y += 18;
+    doc.text(M, y + 10, `Levé du ${date(r.timeFrom)} · carnet ${meta.jobName || ''}${meta.author ? ' · ' + meta.author : ''}`, { size: 9, color: MUTED }); y += 20;
+    // encadré synthèse
+    const boxLines = wrap(S.text, 10, W - 20); const bh = boxLines.length * 13.5 + 16;
+    doc.rect(M, y, W, bh, { fill: S.nok.length ? '#fdf1f0' : '#eef7f0', stroke: S.nok.length ? RED : GREEN, width: 0.8 });
+    boxLines.forEach((l, i) => doc.text(M + 10, y + 18 + i * 13.5, l, { size: 10, bold: i === 0 && false }));
+    y += bh + 12;
+
+    h2('Conformité aux tolérances');
+    para(`Tolérances appliquées au rail directeur (${P.leadingRail === 'auto' ? 'rail bas en courbe, rail gauche ailleurs' : 'rail ' + (P.leadingRail === 'L' ? 'gauche' : 'droit')}), valeurs calculées tous les ${f(P.gridStep, 0)} m avec les seuils d’arrondi du rapport de référence.`);
+    table([{ t: 'Paramètre', w: 0.24 }, { t: 'Tolérance', w: 0.14 }, { t: 'Mesuré', w: 0.18 }, { t: 'Hors tolérance', w: 0.32 }, { t: 'Verdict', w: 0.12 }],
+      r.conformity.map((c) => {
+        const u = c.key === 'gauge' ? `${f(c.stats.min, 1)} à ${f(c.stats.max, 1)} mm` : c.key.endsWith('Roc') ? `0 à ${f(c.stats.max, 1)} mm` : `${f(c.stats.min, 1, true)} à ${f(c.stats.max, 1, true)} mm`;
+        return { cells: [c.label, c.tol, u, c.nOut ? `${c.nOut} sur ${c.n} : ${ranges(c.pks)}` : '0', c.ok ? 'Conforme' : 'Non conforme'], colors: [null, null, null, null, { c: c.ok ? GREEN : RED, bold: true }] };
+      }));
+    if (r.warnings.length) { need(30); doc.text(M, y + 10, 'Points d’attention', { size: 10, bold: true }); y += 16; r.warnings.forEach((w) => para(w, { bullet: true, after: 2 })); y += 4; }
+
+    h2('Identification du levé');
+    const t0 = r.timeFrom, t1 = r.timeTo;
+    table([{ t: 'Élément', w: 0.26 }, { t: 'Valeur', w: 0.74 }], [
+      ['Carnet', `${meta.jobName || ''} (${meta.product || ''})`],
+      ['Date et heure', `${date(t0)}, de ${time(t0)} à ${time(t1)}`],
+      ['Tronçon levé', `PK ${pkf(Math.min(...r.good.map((p) => p.pk)))} à ${pkf(Math.max(...r.good.map((p) => p.pk)))}`],
+      ['Chariot', `${meta.trolley || ''}, prisme à ${f(r.HP, 4)} m au-dessus du plan de roulement (cible ${f(P.targetHeight ?? r.points[0].th, 3)} m + côté fixe ${f(r.fixV, 4)} m)`],
+      ['Conditions', meta.weather || '–'],
+      ['Axe de référence', `${r.design.name} (${r.design.software})`],
+      ['Géométrie dans le tronçon', r.zoneTable.map((z) => `${tname[z.type] || z.type}${z.R ? ' R ' + f(z.R, 2) : ''} (${pkf(z.from, 0)} à ${pkf(z.to, 0)})`).join(' ; ')],
+      ['Écartement nominal / base de dévers', `${f(r.G0 * 1000, 0)} mm / ${f(r.BASE * 1000, 0)} mm`],
+      ['Coordonnées', P.coordSystem],
+    ]);
+
+    h2('Mise en station et contrôle');
+    const st = meta.station || {};
+    para(`Station ${st.name || ''} (${st.type || ''}) : E ${f(st.E, 4)} · N ${f(st.N, 4)} · Z ${f(st.Z, 4)}, orientation ${f(st.ori, 4)} gon, échelle ${st.scale}. Résidus moyens par repère (calculé − connu) :`);
+    table([{ t: 'Repère', w: 0.2 }, { t: 'Distance (m)', w: 0.14, a: 'right' }, { t: 'ΔE (mm)', w: 0.13, a: 'right' }, { t: 'ΔN (mm)', w: 0.13, a: 'right' }, { t: 'ΔZ (mm)', w: 0.13, a: 'right' }, { t: 'ΔZ face 1 / face 2', w: 0.27, a: 'right' }],
+      r.stationRes.map((s) => [s.name, f(s.hd, 1), f(s.dE, 1, true), f(s.dN, 1, true), f(s.dZ, 1, true), `${f(s.dZf1, 1, true)} / ${f(s.dZf2, 1, true)}`]));
+
+    h2('Résultats');
+    table([{ t: 'Paramètre (mm)', w: 0.3 }, { t: 'n', w: 0.07, a: 'right' }, { t: 'Moyenne', w: 0.11, a: 'right' }, { t: 'Écart-type', w: 0.11, a: 'right' }, { t: 'Min', w: 0.1, a: 'right' }, { t: 'Max', w: 0.1, a: 'right' }, { t: 'Écart max (PK)', w: 0.21, a: 'right' }],
+      r.statTable.map((s) => [s.label, String(s.n), f(s.mean, 1, true), f(s.sd, 1), f(s.min, 1, true), f(s.max, 1, true), `${f(s.worst, 1, true)} (${pkf(s.worstPk, 0)})`]));
+    para('Moyennes par élément de tracé (min à max) :', { after: 3 });
+    table([{ t: 'Zone', w: 0.22 }, { t: 'Rail directeur', w: 0.16 }, { t: 'Rail gauche (niv.)', w: 0.16 }, { t: 'Rail droit (niv.)', w: 0.16 }, { t: 'Écartement', w: 0.15 }, { t: 'Dévers', w: 0.15 }],
+      r.zoneTable.map((z) => [`${tname[z.type] || z.type}${z.R ? ' R ' + f(z.R, 0) : ''} (${pkf(z.from, 0)} à +${String(Math.round(z.to % 1000)).padStart(3, '0')})`,
+        ...['hDev', 'dZL', 'dZR', 'dGauge', 'dCant'].map((k) => `${f(z.s[k].mean, 1, true)} (${f(z.s[k].min, 1, true)} à ${f(z.s[k].max, 1, true)})`)]));
+
+    h2('Graphiques');
+    const T = P.tol;
+    chart('Écart horizontal du rail directeur', [{ name: 'Rail directeur', color: '#1f77b4', pts: g.map((q) => [q.pk, q.hDev]) }], { sub: '+ = à droite dans le sens des PK croissants', refs: [{ v: T.h, label: `+${T.h} mm` }, { v: -T.h, label: `−${T.h} mm` }] });
+    chart('Nivellement (écart au profil + dévers théorique)', [{ name: 'Rail gauche', color: '#1f77b4', pts: g.map((q) => [q.pk, q.dZL]) }, { name: 'Rail droit', color: '#e8710a', pts: g.map((q) => [q.pk, q.dZR]) }], { sub: '+ = au-dessus', refs: [{ v: T.v, label: `+${T.v} mm` }, { v: -T.v, label: `−${T.v} mm` }] });
+    chart('Écartement mesuré', [{ name: 'Écartement', color: '#1f77b4', pts: g.map((q) => [q.pk, q.gauge]) }], { refs: [{ v: r.G0 * 1000 + T.gaugeMin, label: 'min' }, { v: r.G0 * 1000 + T.gaugeMax, label: 'max' }] });
+    chart('Dévers mesuré et théorique', [{ name: 'Mesuré', color: '#1f77b4', pts: g.map((q) => [q.pk, q.cant]) }, { name: 'Théorique', color: '#e8710a', pts: g.map((q) => [q.pk, q.cantTh]) }]);
+
+    h2('Qualité des mesures');
+    const pd = r.passDiff;
+    table([{ t: 'Contrôle', w: 0.4 }, { t: 'Résultat', w: 0.6 }], [
+      ['Points enregistrés', `${r.counts.total} : ${r.counts.fwd} à l’aller, ${r.counts.bwd} au retour`],
+      ['Points retenus', String(r.counts.ok)],
+      ['Points rejetés (aberrants)', String(r.counts.rejected)],
+      [`Visées de moins de ${f(P.minSight, 0)} m (exclues)`, String(r.counts.short)],
+      ['Recouvrement aller/retour', r.overlap ? `PK ${pkf(r.overlap.lo, 0)} à ${pkf(r.overlap.hi, 0)}, ${r.overlap.n} points` : 'aucun'],
+      ...(r.overlap ? [
+        ['Retour − aller, nivellement', `rail gauche ${f(pd.dZL.mean, 1, true)} mm (s ${f(pd.dZL.sd, 1)}), rail droit ${f(pd.dZR.mean, 1, true)} mm (s ${f(pd.dZR.sd, 1)})`],
+        ['Retour − aller, écartement / dévers', `${f(pd.dGauge.mean, 1, true)} mm / ${f(pd.dCant.mean, 1, true)} mm`],
+        ['Retour − aller, plan (axe)', `${f(pd.dLat.mean, 1, true)} mm (s ${f(pd.dLat.sd, 1)}), corrigé de ±${f(r.bias.dLat / 2, 1)} mm par passage`],
+      ] : []),
+    ]);
+
+    h2('Méthode et paramètres');
+    [
+      'Écarts recalculés à partir des coordonnées du prisme, de l’inclinaison et de l’écartement enregistrés à chaque point ; PK obtenu par projection sur l’axe de conception.',
+      `Prisme ramené au rail perpendiculairement au plan de roulement (hauteur ${f(r.HP, 4)} m) ; dévers = ${f(r.BASE * 1000, 0)} mm × sin(inclinaison).`,
+      'Axe mesuré = milieu des faces de guidage ; altitude théorique d’un rail = profil + dévers de ce rail.',
+      `Aller et retour moyennés sur une grille de ${f(P.gridStep, 0)} m ; taux de variation sur ${f(P.rocBase, 0)} m ; gauche sur ${f(P.twistBase, 0)} m.`,
+      'Conventions : + = à droite dans le sens des PK croissants ; + = plus haut ; écartement et dévers + = plus grand que la valeur théorique.',
+    ].forEach((t) => para(t, { bullet: true, after: 2 }));
+    return doc.output();
+  }
+
+  // ------------------------------------------------------------------ Excel
+  function excel(r, meta = {}) {
+    const B = new XL.Book(), A = r.alignment, G0 = r.G0;
+    const H = B.style({ bold: true, fill: 'DCE6F1', wrap: true, border: true, center: true });
+    const T1 = B.style({ bold: true, size: 13 });
+    const Bo = B.style({ bold: true });
+    const n0 = B.style({ fmt: '0', border: true }), n1 = B.style({ fmt: '0.0', border: true }), n3 = B.style({ fmt: '0.000', border: true }), n4 = B.style({ fmt: '0.0000', border: true });
+    const pkS = B.style({ fmt: '0\\+000.000', border: true }), txt = B.style({ border: true });
+    const bad0 = B.style({ fmt: '0', fill: 'FFC7CE', color: '9C0006', border: true }), bad1 = B.style({ fmt: '0.0', fill: 'FFC7CE', color: '9C0006', border: true });
+    const pct = B.style({ fmt: '0.0%' }), wrap = B.style({ wrap: true });
+    const set = XL.Book.set;
+    const T = r.params.tol;
+
+    // ---- LEADING RAIL
+    const s = B.sheet('LEADING RAIL');
+    const g = r.grid, nOK = g.filter((q) => Number.isFinite(q.hDev)).length;
+    set(s, 0, 2, `REPORT TRACK – ${r.design.name} – GEDO survey ${date(r.timeFrom)} (PK ${pkf(g[0].pk, 0)} to ${pkf(g[g.length - 1].pk, 0)})`, T1);
+    set(s, 1, 2, 'ALIGNMENT:', Bo); set(s, 1, 4, r.design.name); set(s, 1, 7, 'TOLERANCE', Bo); set(s, 1, 8, '% OUT OF', Bo);
+    set(s, 2, 2, 'FROM:', Bo); set(s, 2, 4, g[0].pk, pkS); set(s, 3, 2, 'TO:', Bo); set(s, 3, 4, g[g.length - 1].pk, pkS);
+    set(s, 4, 2, 'LENGTH:', Bo); set(s, 4, 4, g[g.length - 1].pk - g[0].pk, n3); set(s, 5, 2, `# (${r.params.gridStep} m stations)`, Bo); set(s, 5, 4, nOK);
+    r.conformity.forEach((c, i) => { set(s, 1 + i, 10, c.label + ' (' + c.tol + ')'); set(s, 1 + i, 14, c.n ? c.nOut / c.n : 0, pct); });
+    set(s, 7, 10, '(+) HORIZONTAL = RAIL ALREADY RIGHT OF THEORETICAL LOCATION ; (+) VERTICAL = RAIL ALREADY HIGHER', wrap);
+    set(s, 8, 6, 'LEADING RAIL', Bo);
+    set(s, 8, 10, `TOLERANCE ±${T.h}mm`, Bo); set(s, 8, 11, `TOLERANCE ${T.roc}mm EVERY ${r.params.rocBase} METERS`, Bo); set(s, 8, 12, `TOLERANCE ±${T.v}mm`, Bo); set(s, 8, 13, `TOLERANCE ${T.roc}mm EVERY ${r.params.rocBase} METERS`, Bo); set(s, 8, 14, `TOLERANCE ${T.gaugeMin}/+${T.gaugeMax} mm`, Bo); set(s, 8, 15, `TOLERANCE ±${T.cant} mm`, Bo);
+    set(s, 8, 18, 'to move', Bo); set(s, 8, 19, 'Up chainage', Bo); set(s, 8, 22, 'to move', Bo); set(s, 8, 23, 'shims installed', Bo); set(s, 8, 26, 'Re-shims', Bo); set(s, 8, 29, 'total installed after re-shims', Bo);
+    const hdr = ['# JOINT', '# DF', 'DATE', 'CHAINAGE', 'HORIZONTAL ALIGNMENT', 'LEADING RAIL', 'Measured Easting [m]', 'Measured Northing [m]', 'T.O.R. [m]', 'Measured Elevation [m]', 'HORIZONTAL DEVIATION (mm)', 'HORIZONTAL RoC (mm)', 'VERTICAL DEVIATION (mm)', 'VERTICAL RoC (mm)', 'GAUGE (mm)', 'THEORETICAL (Ea) mm', 'Ea (mm)', '', 'L', 'Target', 'Hor. Adjust.', '', 'R', 'L', 'R', '', 'L', 'R', '', 'L', 'R'];
+    hdr.forEach((h, i) => set(s, 9, i, h, H));
+    const geo = (q) => {
+      const p = A.at(q.pk), nE = Math.cos(p.az), nN = -Math.sin(p.az);
+      const side = q.lead === 'L' ? -1 : 1, dev = q.lead === 'L' ? q.dLatL : q.dLatR;
+      const Ed = p.E + side * (G0 / 2) * nE, Nd = p.N + side * (G0 / 2) * nN;
+      return { p, nE, nN, Ed, Nd, Em: Ed + (dev / 1000) * nE, Nm: Nd + (dev / 1000) * nN };
+    };
+    g.forEach((q, i) => {
+      const R = 10 + i; set(s, R, 3, q.pk, pkS);
+      if (!Number.isFinite(q.hDev)) return;
+      const k = geo(q), zth = q.zp + (q.lead === 'L' ? q.lc : q.rc);
+      set(s, R, 2, date(r.timeFrom), txt); set(s, R, 4, q.type, txt); set(s, R, 5, q.lead, txt);
+      set(s, R, 6, +k.Em.toFixed(4), n4); set(s, R, 7, +k.Nm.toFixed(4), n4); set(s, R, 8, +zth.toFixed(4), n4); set(s, R, 9, +(zth + q.vDev / 1000).toFixed(4), n4);
+      set(s, R, 10, +q.hDev.toFixed(1), q.flags.hDev ? bad1 : n1);
+      if (Number.isFinite(q.hRoc)) set(s, R, 11, Math.round(q.hRoc), q.flags.hRoc ? bad0 : n0);
+      set(s, R, 12, +q.vDev.toFixed(1), q.flags.vDev ? bad1 : n1);
+      if (Number.isFinite(q.vRoc)) set(s, R, 13, Math.round(q.vRoc), q.flags.vRoc ? bad0 : n0);
+      set(s, R, 14, +q.gauge.toFixed(1), q.flags.gauge ? bad1 : n1);
+      set(s, R, 15, +q.cantTh.toFixed(1), n1); set(s, R, 16, +q.dCant.toFixed(1), q.flags.dCant ? bad1 : n1);
+    });
+    s.freeze = 10; [6, 9, 9, 12, 11, 8, 13, 13, 10, 11, 12, 10, 11, 10, 10, 10, 9].forEach((w, i) => { s.widths[i] = w; });
+
+    // ---- raw data GEDO TRACK
+    const rd = B.sheet('raw data Gedo TRACK');
+    const rh = ['# Joint', '# Chainage[m]', 'Easting left (design)[m]', 'Northing left (design)[m]', 'Easting left [m]', 'Northing left [m]', 'Elevation left (design) [m]', 'Elevation left [m]', 'Delta lateral (left) [mm]', 'Delta elevation (left) [mm]', 'Easting (design)[m]', 'Northing (design)[m]', 'Easting center[m]', 'Northing center[m]', 'Elevation gradient (design) [m]', 'Elevation gradient [m]', 'Delta lateral [mm]', 'Delta elevation grad. [mm]', 'Easting right (design)[m]', 'Northing right (design)[m]', 'Easting right[m]', 'Northing right[m]', 'Elevation right (design) [m]', 'Elevation right[m]', 'Delta lateral (right) [mm]', 'Delta elevation (right) [mm]', 'Cant (design) [mm]', 'Cant [mm]', 'Delta cant [mm]', 'Gauge (design) [mm]', 'Gauge [mm]', 'Height Ref.'];
+    rh.forEach((h, i) => set(rd, 0, i, h, H));
+    g.forEach((q, i) => {
+      const R = 1 + i; set(rd, R, 1, q.pk, n3);
+      const p = A.at(q.pk), nE = Math.cos(p.az), nN = -Math.sin(p.az), h = G0 / 2;
+      const d = (side, dev) => [p.E + side * h * nE, p.N + side * h * nN, p.E + side * h * nE + (dev / 1000) * nE, p.N + side * h * nN + (dev / 1000) * nN];
+      if (!Number.isFinite(q.dLatL)) return;
+      const L = d(-1, q.dLatL), Rr = d(1, q.dLatR), Cc = [p.E, p.N, p.E + (q.dLat / 1000) * nE, p.N + (q.dLat / 1000) * nN];
+      const zg = q.zp + (q.lead === 'L' ? q.lc : q.rc), dzg = q.lead === 'L' ? q.dZL : q.dZR;
+      const v = [null, q.pk, L[0], L[1], L[2], L[3], q.zp + q.lc, q.zp + q.lc + q.dZL / 1000, q.dLatL, q.dZL, Cc[0], Cc[1], Cc[2], Cc[3], zg, zg + dzg / 1000, q.dLat, dzg, Rr[0], Rr[1], Rr[2], Rr[3], q.zp + q.rc, q.zp + q.rc + q.dZR / 1000, q.dLatR, q.dZR, Math.abs(q.cantTh), Math.abs(q.cant), -q.dCant, G0 * 1000, q.gauge, q.lead];
+      v.forEach((x, c) => { if (c === 0) return; const fm = c === 1 ? n3 : [8, 9, 16, 17, 24, 25, 26, 27, 28, 29, 30].includes(c) ? n1 : n4; set(rd, R, c, typeof x === 'number' ? +x.toFixed(c >= 26 || [8, 9, 16, 17, 24, 25].includes(c) ? 1 : 4) : x, typeof x === 'number' ? fm : txt); });
+    });
+    rd.freeze = 1; rh.forEach((_, i) => { rd.widths[i] = 13; });
+
+    // ---- Points mesurés
+    const pt = B.sheet('Points');
+    const ph = ['Heure', 'Passe', 'Statut', 'PK odomètre', 'PK projeté', 'E prisme', 'N prisme', 'Z prisme', 'Hz (gon)', 'V (gon)', 'Distance (m)', 'Inclinaison (gon)', 'Écartement (m)', 'Déport prisme (m)', 'Dévers mes. (mm)', 'Dévers théo. (mm)', 'Plan axe (mm)', 'Rail gauche plan (mm)', 'Rail droit plan (mm)', 'Niv. rail gauche (mm)', 'Niv. rail droit (mm)', 'Écart écartement (mm)', 'Écart dévers (mm)'];
+    ph.forEach((h, i) => set(pt, 0, i, h, H));
+    r.points.forEach((p, i) => {
+      const R = 1 + i;
+      const v = [p.time.replace('T', ' '), p.asc ? 'Aller' : 'Retour', p.status, p.tc, p.pk, p.E, p.N, p.Z, p.hz, p.v, p.sd, p.incl, p.gauge, p.off, p.cant, p.cantTh, p.dLat, p.dLatL, p.dLatR, p.dZL, p.dZR, p.dGauge, p.dCant];
+      v.forEach((x, c) => set(pt, R, c, typeof x === 'number' ? +x.toFixed(c <= 13 ? 4 : 1) : x, typeof x === 'number' ? (c <= 13 ? n4 : n1) : txt));
+    });
+    pt.freeze = 1; ph.forEach((_, i) => { pt.widths[i] = i < 3 ? 18 : 12; });
+
+    // ---- NOTES
+    const nt = B.sheet('NOTES'); nt.widths[0] = 140;
+    const P = r.params;
+    [
+      'NOTES', '',
+      `Survey: ${meta.jobName || ''} (${meta.product || ''}), ${date(r.timeFrom)}, trolley ${meta.trolley || ''}, station ${(meta.station || {}).name || ''}.`,
+      `Design: ${r.design.name} (${r.design.software}). Coordinates: ${P.coordSystem}.`,
+      `Leading rail: ${P.leadingRail === 'auto' ? 'low rail in canted zones, left rail elsewhere' : P.leadingRail}.`,
+      `Values every ${P.gridStep} m of chainage; RoC over ${P.rocBase} m; twist over ${P.twistBase} m.`,
+      `Prism height ${r.HP.toFixed(4)} m above running surface (target height + fix side vertical offset).`,
+      r.overlap ? `Forward and backward runs averaged; lateral offset of ${r.bias.dLat.toFixed(1)} mm between runs split equally.` : 'Single run: no lateral offset correction.',
+      `Sights shorter than ${P.minSight} m excluded (${r.counts.short} points); ${r.counts.rejected} gross error(s) rejected.`,
+      `Tolerances: horizontal ±${T.h} mm, vertical ±${T.v} mm, RoC ${T.roc} mm / ${P.rocBase} m, gauge ${T.gaugeMin}/+${T.gaugeMax} mm, cant ±${T.cant} mm.`,
+      'Signs: (+) horizontal = rail to the right (increasing chainage); (+) vertical = rail higher; Ea = measured minus theoretical cant.',
+      ...r.warnings.map((w) => 'Warning: ' + w),
+    ].forEach((t, i) => set(nt, i, 0, t, i === 0 ? T1 : 0));
+    return B.output();
+  }
+  return { pdf, excel, summary, pkf, f, ranges };
+})();
+if (typeof module !== 'undefined') module.exports = GedoReport;
+
+</script>
+<script>
+(() => {
+  const VERSION = 'v1.0 · 2026-09-29';
+  const $ = (id) => document.getElementById(id);
+  const E = GedoEngine, R = GedoReport, X = MiniXML;
+  const state = { design: null, designName: '', job: null, jobName: '', result: null, files: [] };
+  const LS = 'gedo-rec-params-v1';
+  const P0 = { th: '', fixV: '', lead: 'auto', minSight: 4, h: 6, v: 6, roc: 1, cant: 2, gmin: -1, gmax: 3, coord: E.DEFAULTS.coordSystem, author: '' };
+  let prm = { ...P0 };
+  try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s) prm = { ...P0, ...s }; } catch (e) { /* stockage indisponible */ }
+  $('ver').textContent = VERSION;
+  const EMPTY = $('out').innerHTML;
+
+  const toast = (msg) => { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, 3500); };
+  const f = R.f, pkf = R.pkf;
+
+  // ---------------------------------------------------------------- paramètres
+  const fields = { th: 'p_th', fixV: 'p_fixV', lead: 'p_lead', minSight: 'p_minSight', h: 'p_h', v: 'p_v', roc: 'p_roc', cant: 'p_cant', gmin: 'p_gmin', gmax: 'p_gmax', coord: 'p_coord', author: 'p_author' };
+  function fillParams() { Object.entries(fields).forEach(([k, id]) => { $(id).value = prm[k]; }); summarize(); }
+  function readParams() {
+    Object.entries(fields).forEach(([k, id]) => { const v = $(id).value.trim(); prm[k] = ['lead', 'coord', 'author'].includes(k) ? v : v === '' ? (k === 'th' || k === 'fixV' ? '' : P0[k]) : v; });
+    try { localStorage.setItem(LS, JSON.stringify(prm)); } catch (e) { /* ignoré */ }
+    summarize();
+  }
+  const num = (v) => parseFloat(String(v).replace(',', '.'));
+  function summarize() {
+    const j = state.job;
+    const th = prm.th !== '' ? num(prm.th) : j && j.points[0] ? j.points[0].th : null;
+    const fv = prm.fixV !== '' ? num(prm.fixV) : j && j.trolley ? j.trolley.fixV : null;
+    const hp = th !== null && fv !== null ? ` · prisme à ${f(th + fv, 4)} m du rail` : '';
+    $('paramSummary').textContent = `Tolérances : plan ±${prm.h} mm, nivellement ±${prm.v} mm, taux de variation ${prm.roc} mm / 2 m, écartement ${prm.gmin}/+${prm.gmax} mm, dévers ±${prm.cant} mm${hp}.`;
+  }
+  Object.values(fields).forEach((id) => $(id).addEventListener('change', readParams));
+  $('resetParams').addEventListener('click', () => { prm = { ...P0 }; fillParams(); readParams(); toast('Paramètres rétablis'); });
+  fillParams();
+
+  // ---------------------------------------------------------------- fichiers
+  $('pick').addEventListener('click', () => $('fileInput').click());
+  $('clear').addEventListener('click', () => { Object.assign(state, { design: null, job: null, result: null, files: [] }); renderFiles(); renderEmpty(); });
+  $('fileInput').addEventListener('change', async (ev) => {
+    for (const file of ev.target.files) await loadFile(file);
+    ev.target.value = '';
+    renderFiles(); summarize();
+  });
+  async function loadFile(file) {
+    const entry = { name: file.name, kind: '?', ok: false, note: '' };
+    try {
+      const buf = new Uint8Array(await file.arrayBuffer());
+      const head = String.fromCharCode(...buf.slice(0, 15));
+      if (head === 'SQLite format 3') {
+        const db = SqliteLite.open(buf);
+        const d = E.readDesign(db, 0);
+        state.db = db; state.design = d; state.designName = file.name;
+        entry.kind = 'Conception'; entry.ok = true;
+        entry.note = `${d.name} · PK ${pkf(d.axis[0].ch, 0)} à ${pkf(d.axis[d.axis.length - 1].ch, 0)} · ${d.refp.length} repères`;
+        state.files = state.files.filter((x) => x.kind !== 'Conception');
+        const sel = $('track'); sel.innerHTML = '';
+        d.tracks.forEach((t, i) => { const o = document.createElement('option'); o.value = i; o.textContent = t; sel.appendChild(o); });
+        $('trackWrap').hidden = d.tracks.length < 2;
+      } else {
+        const text = new TextDecoder('utf-8').decode(buf);
+        if (text.includes('<JOBFile')) {
+          const j = E.readJob(text, X);
+          state.job = j; state.jobName = file.name;
+          entry.kind = 'Carnet'; entry.ok = true;
+          const d0 = j.points[0].time.slice(0, 10);
+          entry.note = `${j.jobName} · ${d0} · ${j.points.length} points de chariot · station ${j.station ? j.station.name : '?'}`;
+          state.files = state.files.filter((x) => x.kind !== 'Carnet');
+        } else if (/^\d+;/.test(text.trim())) {
+          entry.kind = 'Carnet .job'; entry.note = 'Format .job non pris en charge : exportez le carnet en JobXML (.xml) depuis GEDO Rec.';
+        } else {
+          entry.note = 'Fichier non reconnu (attendu : .sie de GEDO Office ou export .xml de GEDO Rec).';
+        }
+      }
+    } catch (e) { entry.note = e.message || String(e); }
+    state.files.push(entry);
+  }
+  $('track').addEventListener('change', () => { try { state.design = E.readDesign(state.db, +$('track').value); toast(`Voie : ${state.design.name}`); } catch (e) { toast(e.message); } });
+  function renderFiles() {
+    const box = $('fileList'); box.innerHTML = '';
+    state.files.forEach((x) => {
+      const d = document.createElement('div'); d.className = 'file' + (x.ok ? ' ok' : '');
+      d.innerHTML = `<span class="st">${x.ok ? 'OK' : '!'}</span><b></b><span></span>`;
+      d.querySelector('b').textContent = `${x.kind} · ${x.name}`; d.querySelector('span:last-child').textContent = x.note;
+      box.appendChild(d);
+    });
+    $('clear').hidden = !state.files.length;
+    $('run').disabled = !(state.design && state.job);
+  }
+
+  // ---------------------------------------------------------------- calcul
+  $('run').addEventListener('click', () => {
+    readParams();
+    try {
+      const params = {
+        targetHeight: prm.th !== '' ? num(prm.th) : null, fixSideV: prm.fixV !== '' ? num(prm.fixV) : null,
+        leadingRail: prm.lead, minSight: num(prm.minSight), coordSystem: prm.coord,
+        tol: { h: num(prm.h), v: num(prm.v), roc: num(prm.roc), cant: num(prm.cant), gaugeMin: num(prm.gmin), gaugeMax: num(prm.gmax) },
+      };
+      state.result = E.compute(state.design, state.job, params);
+      renderResults();
+      $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (e) {
+      console.error(e);
+      $('out').className = ''; $('out').innerHTML = '';
+      const d = document.createElement('div'); d.className = 'err';
+      d.textContent = `Le calcul a échoué : ${e.message}. Vérifiez que le carnet et le fichier .sie correspondent au même secteur.`;
+      $('out').appendChild(d);
+    }
+  });
+  function renderEmpty() { $('out').className = 'empty'; $('out').innerHTML = EMPTY; }
+
+  const meta = () => {
+    const j = state.job;
+    return { jobName: j.jobName, product: j.product, trolley: j.trolley ? j.trolley.name : '', station: j.station, author: prm.author,
+      weather: j.weather ? `${f(j.weather.t, 1)} °C, ${f(j.weather.p, 1)} mbar, coefficient de réfraction ${f(j.weather.k, 3)}` : '', title: 'Rapport de levé de voie' };
+  };
+
+  function svgChart(title, series, o = {}) {
+    const r = state.result, W = 720, H = 240, x0 = 46, x1 = W - 10, y0 = 34, y1 = H - 30;
+    const xs = r.grid.map((g) => g.pk), xmin = xs[0], xmax = xs[xs.length - 1];
+    let vals = series.flatMap((s) => s.pts.map((p) => p[1]).filter(Number.isFinite)); (o.refs || []).forEach((q) => vals.push(q.v));
+    let lo = Math.min(...vals), hi = Math.max(...vals); if (hi - lo < 2) { lo -= 1; hi += 1; }
+    const st = [0.5, 1, 2, 5, 10, 20, 50].find((s) => (hi - lo) / s <= 6) || 100; lo = Math.floor(lo / st) * st; hi = Math.ceil(hi / st) * st;
+    const X = (v) => x0 + ((v - xmin) / (xmax - xmin || 1)) * (x1 - x0), Y = (v) => y1 - ((v - lo) / (hi - lo)) * (y1 - y0);
+    let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}"><text class="t" x="0" y="16">${title}</text>`;
+    for (let t = lo; t <= hi + 1e-9; t += st) s += `<line x1="${x0}" x2="${x1}" y1="${Y(t)}" y2="${Y(t)}" stroke="var(--grid)" stroke-width="${Math.abs(t) < 1e-9 ? 1.5 : 1}"/><text x="${x0 - 6}" y="${Y(t) + 4}" text-anchor="end">${f(t, st < 1 ? 1 : 0)}</text>`;
+    const xst = [5, 10, 20, 25, 50, 100, 200, 500].find((q) => (xmax - xmin) / q <= 8) || 1000;
+    for (let t = Math.ceil(xmin / xst) * xst; t <= xmax; t += xst) s += `<text x="${X(t)}" y="${H - 10}" text-anchor="middle">${pkf(t, 0)}</text>`;
+    (o.refs || []).forEach((q) => { s += `<line x1="${x0}" x2="${x1}" y1="${Y(q.v)}" y2="${Y(q.v)}" stroke="var(--tol)" stroke-dasharray="5 4" stroke-width="1.2"/>`; });
+    series.forEach((se) => {
+      let d = '', pen = false;
+      se.pts.forEach(([px, py]) => { if (Number.isFinite(py)) { d += `${pen ? 'L' : 'M'}${X(px).toFixed(1)} ${Y(py).toFixed(1)} `; pen = true; } else pen = false; });
+      s += `<path d="${d}" fill="none" stroke="${se.color}" stroke-width="2" stroke-linejoin="round"/>`;
+    });
+    s += '</svg>';
+    const lg = `<div class="legend">${series.map((se) => `<span><i style="background:${se.color}"></i>${se.name}</span>`).join('')}${o.refs ? '<span><i style="background:var(--tol)"></i>Tolérance</span>' : ''}</div>`;
+    return s + lg;
+  }
+
+  function renderResults() {
+    const r = state.result, S = R.summary(r), g = r.grid, T = r.params.tol;
+    const out = $('out'); out.className = ''; out.innerHTML = '';
+    const add = (html) => { out.insertAdjacentHTML('beforeend', html); };
+    const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    add(`<div class="verdict ${S.nok.length ? 'bad' : 'good'}">${esc(S.text)}</div>`);
+    add(`<div class="row"><button class="primary" id="dlPdf">Rapport PDF</button><button id="dlXlsx">Tableau Excel</button></div>`);
+    add('<h3>Conformité</h3><div class="checks">' + r.conformity.map((c) => {
+      const m = c.key === 'gauge' ? `${f(c.stats.min, 1)} à ${f(c.stats.max, 1)} mm` : c.key.endsWith('Roc') ? `max ${f(c.stats.max, 1)} mm` : `${f(c.stats.min, 1, true)} à ${f(c.stats.max, 1, true)} mm`;
+      const where = c.nOut ? ` · hors tolérance : ${c.nOut}/${c.n} (${R.ranges(c.pks)})` : '';
+      return `<div class="chk"><span class="l">${esc(c.label)}</span><span class="pill ${c.ok ? 'ok' : 'no'}">${c.ok ? 'Conforme' : 'Non conforme'}</span><span class="v">Tol. ${esc(c.tol)} · mesuré ${m}${esc(where)}</span></div>`;
+    }).join('') + '</div>');
+    if (r.warnings.length) add('<h3>Points d’attention</h3><ul class="warns">' + r.warnings.map((w) => `<li>${esc(w)}</li>`).join('') + '</ul>');
+    add('<h3>Graphiques</h3>');
+    add(svgChart('Écart horizontal du rail directeur (mm)', [{ name: 'Rail directeur', color: 'var(--s1)', pts: g.map((q) => [q.pk, q.hDev]) }], { refs: [{ v: T.h }, { v: -T.h }] }));
+    add(svgChart('Nivellement (mm)', [{ name: 'Rail gauche', color: 'var(--s1)', pts: g.map((q) => [q.pk, q.dZL]) }, { name: 'Rail droit', color: 'var(--s2)', pts: g.map((q) => [q.pk, q.dZR]) }], { refs: [{ v: T.v }, { v: -T.v }] }));
+    add(svgChart('Écartement (mm)', [{ name: 'Écartement', color: 'var(--s1)', pts: g.map((q) => [q.pk, q.gauge]) }], { refs: [{ v: r.G0 * 1000 + T.gaugeMin }, { v: r.G0 * 1000 + T.gaugeMax }] }));
+    add(svgChart('Dévers (mm)', [{ name: 'Mesuré', color: 'var(--s1)', pts: g.map((q) => [q.pk, q.cant]) }, { name: 'Théorique', color: 'var(--s2)', pts: g.map((q) => [q.pk, q.cantTh]) }]));
+    add('<h3>Statistiques (grille de 1 m)</h3><div class="tbl"><table><thead><tr><th>Paramètre (mm)</th><th>n</th><th>Moy.</th><th>É.-t.</th><th>Min</th><th>Max</th><th>Max au PK</th></tr></thead><tbody>' +
+      r.statTable.map((s) => `<tr><td>${esc(s.label)}</td><td>${s.n}</td><td>${f(s.mean, 1, true)}</td><td>${f(s.sd, 1)}</td><td>${f(s.min, 1, true)}</td><td>${f(s.max, 1, true)}</td><td>${pkf(s.worstPk, 0)}</td></tr>`).join('') + '</tbody></table></div>');
+    add('<h3>Mise en station</h3><div class="tbl"><table><thead><tr><th>Repère</th><th>Dist. (m)</th><th>ΔE</th><th>ΔN</th><th>ΔZ (mm)</th></tr></thead><tbody>' +
+      r.stationRes.map((s) => `<tr><td>${esc(s.name)}</td><td>${f(s.hd, 1)}</td><td>${f(s.dE, 1, true)}</td><td>${f(s.dN, 1, true)}</td><td>${f(s.dZ, 1, true)}</td></tr>`).join('') + '</tbody></table></div>');
+    const c = r.counts;
+    add(`<p class="muted">${c.total} points (${c.fwd} aller, ${c.bwd} retour) · ${c.ok} retenus · ${c.rejected} rejeté(s) · ${c.short} visée(s) courte(s). Axe : ${esc(r.design.name)}. Prisme à ${f(r.HP, 4)} m du rail.</p>`);
+    $('dlPdf').addEventListener('click', () => save('pdf'));
+    $('dlXlsx').addEventListener('click', () => save('xlsx'));
+  }
+
+  // ---------------------------------------------------------------- export
+  async function save(kind) {
+    const r = state.result, g = r.grid;
+    const base = `${r.design.name}_${(r.timeFrom || '').slice(0, 10)}_PK${Math.round(g[0].pk)}-${Math.round(g[g.length - 1].pk)}`.replace(/[^A-Za-z0-9_.-]+/g, '_');
+    let data, name, mime;
+    try {
+      if (kind === 'pdf') { data = R.pdf(r, meta()); name = `Rapport_${base}.pdf`; mime = 'application/pdf'; }
+      else { data = R.excel(r, meta()); name = `Ecarts_${base}.xlsx`; mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'; }
+    } catch (e) { console.error(e); toast(`Génération impossible : ${e.message}`); return; }
+    // 1) visionneuse claude.ai (capacité downloads)
+    try {
+      const dl = window.claude && window.claude.use ? await Promise.race([window.claude.use('downloads'), new Promise((res) => setTimeout(() => res(null), 1500))]) : null;
+      if (dl) { await dl.save({ filename: name, data: new Blob([data], { type: mime }) }); toast('Fichier enregistré'); return; }
+    } catch (e) { if (e && e.code === 'declined') return; }
+    const file = new File([data], name, { type: mime });
+    // 2) feuille de partage iOS / Android
+    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+    // 3) téléchargement classique
+    const url = URL.createObjectURL(file); const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+
+  // mode hors ligne (GitHub Pages)
+  if ('serviceWorker' in navigator && /github\.io$/.test(location.hostname)) navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+
+</body></html>
